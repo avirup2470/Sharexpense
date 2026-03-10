@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Analysis Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Library to read Excel files -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        .card { @apply bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        .edit-select { @apply bg-transparent border-none text-[10px] font-bold uppercase cursor-pointer focus:ring-0 p-0 w-full; }
+        #dropZone.dragover { @apply border-indigo-500 bg-indigo-50; }
+        .stat-label { @apply text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1; }
+        .stat-value { @apply text-lg font-bold text-gray-800; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen pb-12 font-sans">
+
+    <nav class="bg-white border-b border-gray-200 px-6 py-4 mb-6">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold text-indigo-600 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Financial Insights
+            </h1>
+            <div id="fileStatus" class="text-sm text-gray-400 font-medium italic">Monthly Analysis Ready</div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6">
+        
+        <!-- Upload Section -->
+        <div id="uploadSection" class="mb-8">
+            <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center transition-all bg-white cursor-pointer hover:border-indigo-400">
+                <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" class="hidden">
+                <div class="flex flex-col items-center">
+                    <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a2 2 0 00-2-2H5a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2zm0 0h2a2 2 0 002-2v-2a2 2 0 00-2-2H9m12 10v-2a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 00-2-2h-2a2 2 0 00-2 2v10m-6-10a2 2 0 00-2-2H5a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7z"/></svg>
+                    <p class="text-lg font-medium text-gray-700">Drop Account Statement (Excel/CSV)</p>
+                    <p class="text-sm text-gray-500 mt-1">Categorization & Monthly grouping applied</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div id="dashboardContent" class="hidden">
+            <!-- Filter Bar -->
+            <div class="flex flex-wrap items-center gap-4 mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div class="flex flex-col">
+                    <label class="text-[10px] uppercase font-bold text-gray-400 mb-1">Time Period</label>
+                    <select id="monthFilter" class="text-sm border rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-200">
+                        <option value="all">All Time (Total Sum)</option>
+                    </select>
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-[10px] uppercase font-bold text-gray-400 mb-1">Category</label>
+                    <select id="categoryFilter" class="text-sm border rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-200">
+                        <option value="all">All Categories</option>
+                        <option value="EMI">EMI</option>
+                        <option value="Family">Family</option>
+                        <option value="Online Shopping">Shopping</option>
+                        <option value="Travel">Travel</option>
+                        <option value="Rent">Rent</option>
+                        <option value="Home">Home</option>
+                        <option value="Daily Necessities">Daily</option>
+                        <option value="Savings">Savings</option>
+                        <option value="Transportation">Local Transport</option>
+                        <option value="Mobile Recharge">Mobile</option>
+                        <option value="Unknown">Unknown</option>
+                    </select>
+                </div>
+                <div class="flex flex-col flex-grow">
+                    <label class="text-[10px] uppercase font-bold text-gray-400 mb-1">Search Keywords</label>
+                    <input type="text" id="tableSearch" placeholder="Search transactions..." class="text-sm border rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-200 w-full">
+                </div>
+            </div>
+
+            <!-- Top Summary Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+                <div class="card bg-slate-900 border-none text-white">
+                    <p class="stat-label text-slate-400">Total Spent</p>
+                    <p class="stat-value text-white" id="totalSpent">₹0</p>
+                </div>
+                <div class="card border-l-4 border-rose-500">
+                    <p class="stat-label">EMI & Loans</p>
+                    <p class="stat-value" id="emiTotal">₹0</p>
+                </div>
+                <div class="card border-l-4 border-pink-500">
+                    <p class="stat-label">Family</p>
+                    <p class="stat-value" id="familyTotal">₹0</p>
+                </div>
+                <div class="card border-l-4 border-cyan-500">
+                    <p class="stat-label">Shopping</p>
+                    <p class="stat-value" id="shoppingTotal">₹0</p>
+                </div>
+                <div class="card border-l-4 border-teal-500">
+                    <p class="stat-label">Travel/Flight</p>
+                    <p class="stat-value" id="travelTotal">₹0</p>
+                </div>
+                <div class="card border-l-4 border-green-500">
+                    <p class="stat-label">Savings</p>
+                    <p class="stat-value" id="savingsTotal">₹0</p>
+                </div>
+                <!-- Extra tracking containers (hidden) -->
+                <div class="hidden" id="dailyTotal"></div>
+                <div class="hidden" id="rentHomeTotal"></div>
+                <div class="hidden" id="transportTotal"></div>
+                <div class="hidden" id="mobileTotal"></div>
+                <div class="hidden" id="unknownTotal"></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="card">
+                        <h2 class="text-md font-semibold mb-4 flex items-center gap-2">
+                            <span class="w-2 h-2 bg-indigo-500 rounded-full"></span>
+                            Expense Distribution
+                        </h2>
+                        <div class="h-[300px] flex items-center justify-center">
+                            <canvas id="expenseChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card overflow-hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-md font-semibold">Transaction Ledger</h2>
+                        </div>
+                        <div class="overflow-x-auto max-h-[500px] overflow-y-auto border rounded-lg">
+                            <table class="w-full text-left">
+                                <thead class="sticky top-0 bg-gray-100 text-gray-600 text-[10px] uppercase font-bold tracking-widest border-b">
+                                    <tr>
+                                        <th class="px-4 py-2">Date</th>
+                                        <th class="px-4 py-2">Details</th>
+                                        <th class="px-4 py-2 text-right">Debit</th>
+                                        <th class="px-4 py-2 text-center">Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactionTable" class="divide-y divide-gray-50 text-[11px]"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="card">
+                        <h2 class="text-md font-semibold mb-4 text-indigo-900 border-b pb-2">Updated Rules</h2>
+                        <div class="text-[10px] space-y-3 text-gray-500">
+                            <p><span class="font-bold text-pink-600 uppercase">Family:</span> Pratima Chakraborty</p>
+                            <p><span class="font-bold text-green-600 uppercase">Savings:</span> Avirup Chakraborty, Zerodha, Invest</p>
+                            <p><span class="font-bold text-rose-600 uppercase">EMI:</span> IDFC, Loan, Finance keywords</p>
+                            <p><span class="font-bold text-cyan-600 uppercase">Shopping:</span> Amazon, Macfos, Flipkart</p>
+                            <p><span class="font-bold text-teal-600 uppercase">Travel:</span> Ixigo, Indigo, Flight, IRCTC</p>
+                            <p><span class="font-bold text-blue-600 uppercase">Daily:</span> < ₹500, UPI Lite</p>
+                        </div>
+                    </div>
+                    
+                    <div class="card bg-indigo-600 text-white border-none shadow-lg">
+                        <h2 class="text-md font-semibold mb-3">Action</h2>
+                        <button onclick="exportToCSV()" class="w-full py-2.5 bg-white text-indigo-600 hover:bg-indigo-50 rounded-lg font-bold text-sm transition-all mb-3">
+                            Export Analyzed File
+                        </button>
+                        <button onclick="location.reload()" class="w-full py-2 text-[10px] text-indigo-200 hover:text-white transition-all">
+                            Start Over
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let transactions = [];
+        let chartInstance = null;
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropZone.onclick = () => fileInput.click();
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
+        dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        };
+        fileInput.onchange = (e) => handleFile(e.target.files[0]);
+
+        function handleFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                processExcelData(jsonData);
+                document.getElementById('uploadSection').classList.add('hidden');
+                document.getElementById('dashboardContent').classList.remove('hidden');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function cleanAmount(val) {
+            if (val === undefined || val === null || val === "") return 0;
+            let str = val.toString().replace(/INR/gi, '').replace(/[",]/g, '').trim();
+            let num = parseFloat(str);
+            return isNaN(num) ? 0 : Math.abs(num);
+        }
+
+        function classify(amount, desc) {
+            const d = desc.toLowerCase();
+            
+            // PRIORITY 1: Family (Hard override)
+            if (d.includes("pratima chakraborty") || d.includes("pratima")) return "Family";
+            
+            // PRIORITY 2: Savings (Avirup Rule)
+            if (d.includes("avirup chakraborty") || d.includes("avirup") || d.includes("stock") || d.includes("invest") || d.includes("zerodha") || d.includes("fixed deposit") || d.includes("indstocks")) return "Savings";
+            
+            // PRIORITY 3: EMI & Finance
+            if (d.includes("idfc") || d.includes("loan") || d.includes("finance") || d.includes("emi ")) return "EMI";
+            
+            // PRIORITY 4: General Family Keyword
+            if (d.includes("chakraborty") || d.includes("family")) return "Family";
+            
+            // PRIORITY 5: Travel & Aviation
+            if (d.includes("ixigo") || d.includes("indigo") || d.includes("flight") || d.includes("irctc") || d.includes("makemytrip") || d.includes("cleartrip") || d.includes("vistara") || d.includes("air india")) return "Travel";
+            
+            // PRIORITY 6: Online Shopping
+            if (d.includes("amazon") || d.includes("macfos") || d.includes("flipkart") || d.includes("myntra") || d.includes("meesho") || d.includes("ajio") || d.includes("nykaa")) return "Online Shopping";
+            
+            // PRIORITY 7: Miscellaneous
+            if (d.includes("upi lite")) return "Daily Necessities";
+            if (d.includes("uber") || d.includes("ola") || d.includes("rapido") || d.includes("namma yatri")) return "Transportation";
+            if (d.includes("jio") || d.includes("airtel") || d.includes("recharge") || d.includes("vi ")) return "Mobile Recharge";
+            
+            // PRIORITY 8: Fixed Amount Based Rules
+            if (amount === 11000 || amount === 3000) return "Rent";
+            if (amount === 7000 || amount === 9000) return "Home";
+            if (amount < 500 && amount > 0) return "Daily Necessities";
+            
+            return "Unknown";
+        }
+
+        function processExcelData(data) {
+            let headerIdx = data.findIndex(row => row.some(cell => cell && cell.toString().toLowerCase().includes('date')));
+            if (headerIdx === -1) headerIdx = 0;
+
+            const headerRow = data[headerIdx];
+            const dateIdx = headerRow.findIndex(cell => cell && cell.toString().toLowerCase().includes('date'));
+            const descIdx = headerRow.findIndex(cell => cell && cell.toString().toLowerCase().includes('details'));
+            const debitIdx = headerRow.findIndex(cell => cell && cell.toString().toLowerCase().includes('debit'));
+
+            transactions = data.slice(headerIdx + 1).map((row, idx) => {
+                const dateRaw = row[dateIdx];
+                const amount = cleanAmount(row[debitIdx]);
+                const desc = (row[descIdx] || "N/A").toString().replace(/"/g, '').trim();
+                
+                if (!dateRaw || amount === 0) return null;
+
+                const dateStr = dateRaw.toString();
+                let monthGroup = "Unknown";
+                const dateParts = dateStr.match(/[a-zA-Z]{3} \d{4}/);
+                if (dateParts) {
+                    monthGroup = dateParts[0];
+                } else {
+                    const d = new Date(dateStr);
+                    if (!isNaN(d.getTime())) {
+                        monthGroup = d.toLocaleString('default', { month: 'short', year: 'numeric' });
+                    }
+                }
+
+                return {
+                    id: idx,
+                    date: dateStr,
+                    monthGroup: monthGroup,
+                    desc: desc,
+                    amount: amount,
+                    type: classify(amount, desc)
+                };
+            }).filter(t => t !== null);
+
+            const months = [...new Set(transactions.map(t => t.monthGroup))];
+            const mFilter = document.getElementById('monthFilter');
+            mFilter.innerHTML = '<option value="all">All Time (Total Sum)</option>';
+            months.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                mFilter.appendChild(opt);
+            });
+
+            renderUI();
+        }
+
+        function setSafeText(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.innerText = text;
+        }
+
+        function renderUI() {
+            const tableBody = document.getElementById('transactionTable');
+            tableBody.innerHTML = '';
+            
+            let stats = { total: 0, emi: 0, family: 0, shopping: 0, travel: 0, daily: 0, rentHome: 0, savings: 0, transport: 0, mobile: 0, unknown: 0 };
+
+            const catFilter = document.getElementById('categoryFilter').value;
+            const monthFilter = document.getElementById('monthFilter').value;
+            const search = document.getElementById('tableSearch').value.toLowerCase();
+
+            transactions.forEach(t => {
+                if (monthFilter !== 'all' && t.monthGroup !== monthFilter) return;
+                if (catFilter !== 'all' && t.type !== catFilter) return;
+                if (search && !t.desc.toLowerCase().includes(search)) return;
+
+                stats.total += t.amount;
+                if (t.type === "EMI") stats.emi += t.amount;
+                else if (t.type === "Family") stats.family += t.amount;
+                else if (t.type === "Online Shopping") stats.shopping += t.amount;
+                else if (t.type === "Travel") stats.travel += t.amount;
+                else if (t.type === "Daily Necessities") stats.daily += t.amount;
+                else if (t.type === "Rent" || t.type === "Home") stats.rentHome += t.amount;
+                else if (t.type === "Savings") stats.savings += t.amount;
+                else if (t.type === "Transportation") stats.transport += t.amount;
+                else if (t.type === "Mobile Recharge") stats.mobile += t.amount;
+                else stats.unknown += t.amount;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition-colors border-b border-gray-50";
+                tr.innerHTML = `
+                    <td class="px-4 py-2.5 text-gray-500 whitespace-nowrap font-mono">${t.date}</td>
+                    <td class="px-4 py-2.5 text-gray-700 font-medium truncate max-w-[200px]" title="${t.desc}">${t.desc}</td>
+                    <td class="px-4 py-2.5 text-right font-bold text-gray-900">₹${t.amount.toLocaleString('en-IN')}</td>
+                    <td class="px-4 py-2.5 text-center">
+                        <div class="px-2 py-0.5 rounded border ${getBadgeClass(t.type)}">
+                            <select onchange="updateCategory(${t.id}, this.value)" class="edit-select">
+                                <option value="EMI" ${t.type === 'EMI' ? 'selected' : ''}>EMI</option>
+                                <option value="Family" ${t.type === 'Family' ? 'selected' : ''}>Family</option>
+                                <option value="Online Shopping" ${t.type === 'Online Shopping' ? 'selected' : ''}>Shopping</option>
+                                <option value="Travel" ${t.type === 'Travel' ? 'selected' : ''}>Travel</option>
+                                <option value="Rent" ${t.type === 'Rent' ? 'selected' : ''}>Rent</option>
+                                <option value="Home" ${t.type === 'Home' ? 'selected' : ''}>Home</option>
+                                <option value="Daily Necessities" ${t.type === 'Daily Necessities' ? 'selected' : ''}>Daily</option>
+                                <option value="Savings" ${t.type === 'Savings' ? 'selected' : ''}>Savings</option>
+                                <option value="Transportation" ${t.type === 'Transportation' ? 'selected' : ''}>Transport</option>
+                                <option value="Mobile Recharge" ${t.type === 'Mobile Recharge' ? 'selected' : ''}>Mobile</option>
+                                <option value="Unknown" ${t.type === 'Unknown' ? 'selected' : ''}>Unknown</option>
+                            </select>
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            setSafeText('totalSpent', `₹${Math.round(stats.total).toLocaleString('en-IN')}`);
+            setSafeText('emiTotal', `₹${Math.round(stats.emi).toLocaleString('en-IN')}`);
+            setSafeText('familyTotal', `₹${Math.round(stats.family).toLocaleString('en-IN')}`);
+            setSafeText('shoppingTotal', `₹${Math.round(stats.shopping).toLocaleString('en-IN')}`);
+            setSafeText('travelTotal', `₹${Math.round(stats.travel).toLocaleString('en-IN')}`);
+            setSafeText('savingsTotal', `₹${Math.round(stats.savings).toLocaleString('en-IN')}`);
+            
+            updateChart(stats);
+        }
+
+        function getBadgeClass(type) {
+            switch(type) {
+                case 'EMI': return 'bg-rose-50 border-rose-100 text-rose-600';
+                case 'Family': return 'bg-pink-50 border-pink-100 text-pink-600';
+                case 'Online Shopping': return 'bg-cyan-50 border-cyan-100 text-cyan-600';
+                case 'Travel': return 'bg-teal-50 border-teal-100 text-teal-600';
+                case 'Daily Necessities': return 'bg-blue-50 border-blue-100 text-blue-600';
+                case 'Savings': return 'bg-green-50 border-green-100 text-green-600';
+                default: return 'bg-gray-50 border-gray-200 text-gray-400';
+            }
+        }
+
+        function updateCategory(id, newValue) {
+            const index = transactions.findIndex(t => t.id === id);
+            if (index !== -1) {
+                transactions[index].type = newValue;
+                renderUI();
+            }
+        }
+
+        function updateChart(stats) {
+            const labels = [];
+            const data = [];
+            const colors = {
+                'EMI': '#e11d48', 'Family': '#db2777', 'Online Shopping': '#0891b2',
+                'Travel': '#0d9488', 'Rent': '#f43f5e', 'Home': '#f97316',
+                'Daily Necessities': '#3b82f6', 'Savings': '#10b981',
+                'Transportation': '#f59e0b', 'Mobile Recharge': '#8b5cf6', 'Unknown': '#94a3b8'
+            };
+            const bgColors = [];
+
+            Object.entries(stats).forEach(([key, val]) => {
+                if (key === 'total' || val === 0) return;
+                const friendlyName = {
+                    emi: 'EMI', family: 'Family', shopping: 'Shopping', 
+                    travel: 'Travel', daily: 'Daily', rentHome: 'Rent/Home', 
+                    savings: 'Savings', transport: 'Transport', mobile: 'Mobile', unknown: 'Misc'
+                }[key] || key;
+                labels.push(friendlyName);
+                data.push(val);
+                const mapKey = {
+                    emi: 'EMI', family: 'Family', shopping: 'Online Shopping',
+                    travel: 'Travel', daily: 'Daily Necessities', rentHome: 'Rent',
+                    savings: 'Savings', transport: 'Transportation', mobile: 'Mobile Recharge'
+                }[key] || 'Unknown';
+                bgColors.push(colors[mapKey]);
+            });
+
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{ data: data, backgroundColor: bgColors, borderWidth: 1, borderColor: '#ffffff' }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 10, font: { size: 9 } } } },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        function exportToCSV() {
+            let csv = "Date,Description,Amount,Category,Month\n";
+            transactions.forEach(t => {
+                csv += `${t.date},"${t.desc.replace(/"/g, '""')}",${t.amount},${t.type},${t.monthGroup}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'financial_analysis_report.csv';
+            a.click();
+        }
+
+        document.getElementById('categoryFilter').addEventListener('change', renderUI);
+        document.getElementById('monthFilter').addEventListener('change', renderUI);
+        document.getElementById('tableSearch').addEventListener('input', renderUI);
+    </script>
+</body>
+</html>
