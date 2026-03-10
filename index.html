@@ -218,7 +218,7 @@
         function classify(amount, desc) {
             const d = desc.toLowerCase();
             if (d.includes("pratima chakraborty") || d.includes("pratima")) return "Family";
-            if (d.includes("avirup chakraborty") || d.includes("avirup") || d.includes("stock") || d.includes("invest") || d.includes("zerodha") || d.includes("fixed deposit") || d.includes("indstocks")) return "Savings";
+            if ((d.includes("avirup chakraborty") || d.includes("avirup") || d.includes("stock") || d.includes("invest") || d.includes("zerodha") || d.includes("fixed deposit") || d.includes("indstocks")) && !d.includes("lite")) return "Savings";
             if (d.includes("idfc") || d.includes("loan") || d.includes("finance") || d.includes("emi ")) return "EMI";
             if (d.includes("chakraborty") || d.includes("family")) return "Family";
             if (d.includes("ixigo") || d.includes("indigo") || d.includes("flight") || d.includes("irctc") || d.includes("makemytrip") || d.includes("cleartrip") || d.includes("vistara") || d.includes("air india")) return "Travel";
