@@ -6,7 +6,6 @@
     <title>Transaction Analysis Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Library to read Excel files -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         .card { @apply bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between; }
@@ -16,6 +15,22 @@
         #dropZone.dragover { @apply border-indigo-500 bg-indigo-50; }
         .stat-label { @apply text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1; }
         .stat-value { @apply text-lg font-bold text-gray-800; }
+
+        /* Print Specific Styles */
+        @media print {
+            body { background-color: white !important; padding: 0 !important; margin: 0 !important; }
+            #uploadSection, .action-buttons, nav, #dashboardContent > div:first-child, .edit-select-arrow { 
+                display: none !important; 
+            }
+            .max-w-7xl { max-width: 100% !important; width: 100% !important; margin: 0 !important; padding: 10px !important; }
+            .card { border: 1px solid #eee !important; box-shadow: none !important; break-inside: avoid; }
+            .overflow-y-auto { max-height: none !important; overflow: visible !important; }
+            #transactionTable select { appearance: none; -webkit-appearance: none; pointer-events: none; }
+            .grid { display: block !important; }
+            .grid > div { margin-bottom: 20px; width: 100% !important; }
+            canvas { max-width: 400px !important; margin: 0 auto; }
+            tr { break-inside: avoid; page-break-inside: avoid; }
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen pb-12 font-sans">
@@ -103,12 +118,6 @@
                     <p class="stat-label">Savings</p>
                     <p class="stat-value" id="savingsTotal">₹0</p>
                 </div>
-                <!-- Extra tracking containers (hidden) -->
-                <div class="hidden" id="dailyTotal"></div>
-                <div class="hidden" id="rentHomeTotal"></div>
-                <div class="hidden" id="transportTotal"></div>
-                <div class="hidden" id="mobileTotal"></div>
-                <div class="hidden" id="unknownTotal"></div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -123,11 +132,11 @@
                         </div>
                     </div>
 
-                    <div class="card overflow-hidden">
+                    <div id="ledgerContainer" class="card overflow-hidden">
                         <div class="flex justify-between items-center mb-4">
                             <h2 class="text-md font-semibold">Transaction Ledger</h2>
                         </div>
-                        <div class="overflow-x-auto max-h-[500px] overflow-y-auto border rounded-lg">
+                        <div id="tableWrapper" class="overflow-x-auto max-h-[500px] overflow-y-auto border rounded-lg">
                             <table class="w-full text-left">
                                 <thead class="sticky top-0 bg-gray-100 text-gray-600 text-[10px] uppercase font-bold tracking-widest border-b">
                                     <tr>
@@ -143,23 +152,20 @@
                     </div>
                 </div>
 
-                <div class="space-y-6">
+                <div class="space-y-6 action-buttons">
                     <div class="card">
-                        <h2 class="text-md font-semibold mb-4 text-indigo-900 border-b pb-2">Updated Rules</h2>
+                        <h2 class="text-md font-semibold mb-4 text-indigo-900 border-b pb-2">Rules Applied</h2>
                         <div class="text-[10px] space-y-3 text-gray-500">
                             <p><span class="font-bold text-pink-600 uppercase">Family:</span> Pratima Chakraborty</p>
                             <p><span class="font-bold text-green-600 uppercase">Savings:</span> Avirup Chakraborty, Zerodha, Invest</p>
-                            <p><span class="font-bold text-rose-600 uppercase">EMI:</span> IDFC, Loan, Finance keywords</p>
-                            <p><span class="font-bold text-cyan-600 uppercase">Shopping:</span> Amazon, Macfos, Flipkart</p>
-                            <p><span class="font-bold text-teal-600 uppercase">Travel:</span> Ixigo, Indigo, Flight, IRCTC</p>
-                            <p><span class="font-bold text-blue-600 uppercase">Daily:</span> < ₹500, UPI Lite</p>
+                            <p><span class="font-bold text-rose-600 uppercase">EMI:</span> IDFC, Loan, Finance</p>
                         </div>
                     </div>
                     
                     <div class="card bg-indigo-600 text-white border-none shadow-lg">
-                        <h2 class="text-md font-semibold mb-3">Action</h2>
-                        <button onclick="exportToCSV()" class="w-full py-2.5 bg-white text-indigo-600 hover:bg-indigo-50 rounded-lg font-bold text-sm transition-all mb-3">
-                            Export Analyzed File
+                        <h2 class="text-md font-semibold mb-3">Export</h2>
+                        <button onclick="exportToPDF()" class="w-full py-2.5 bg-white text-indigo-600 hover:bg-indigo-50 rounded-lg font-bold text-sm transition-all mb-3">
+                            Print / Save as PDF
                         </button>
                         <button onclick="location.reload()" class="w-full py-2 text-[10px] text-indigo-200 hover:text-white transition-all">
                             Start Over
@@ -211,42 +217,24 @@
 
         function classify(amount, desc) {
             const d = desc.toLowerCase();
-            
-            // PRIORITY 1: Family (Hard override)
             if (d.includes("pratima chakraborty") || d.includes("pratima")) return "Family";
-            
-            // PRIORITY 2: Savings (Avirup Rule)
             if (d.includes("avirup chakraborty") || d.includes("avirup") || d.includes("stock") || d.includes("invest") || d.includes("zerodha") || d.includes("fixed deposit") || d.includes("indstocks")) return "Savings";
-            
-            // PRIORITY 3: EMI & Finance
             if (d.includes("idfc") || d.includes("loan") || d.includes("finance") || d.includes("emi ")) return "EMI";
-            
-            // PRIORITY 4: General Family Keyword
             if (d.includes("chakraborty") || d.includes("family")) return "Family";
-            
-            // PRIORITY 5: Travel & Aviation
             if (d.includes("ixigo") || d.includes("indigo") || d.includes("flight") || d.includes("irctc") || d.includes("makemytrip") || d.includes("cleartrip") || d.includes("vistara") || d.includes("air india")) return "Travel";
-            
-            // PRIORITY 6: Online Shopping
-            if (d.includes("amazon") || d.includes("macfos") || d.includes("flipkart") || d.includes("myntra") || d.includes("meesho") || d.includes("ajio") || d.includes("nykaa")) return "Online Shopping";
-            
-            // PRIORITY 7: Miscellaneous
+            if (d.includes("amazon") || d.includes("macfos") || d.includes("flipkart") || d.includes("myntra") || d.includes("meesho") || d.includes("ajio") || d.includes("nykaa") || d.includes("baazar")) return "Online Shopping";
             if (d.includes("upi lite")) return "Daily Necessities";
             if (d.includes("uber") || d.includes("ola") || d.includes("rapido") || d.includes("namma yatri")) return "Transportation";
             if (d.includes("jio") || d.includes("airtel") || d.includes("recharge") || d.includes("vi ")) return "Mobile Recharge";
-            
-            // PRIORITY 8: Fixed Amount Based Rules
-            if (amount === 11000 || amount === 3000) return "Rent";
+            if (d.includes("raja") || amount === 11000 || amount === 3000) return "Rent";
             if (amount === 7000 || amount === 9000) return "Home";
             if (amount < 500 && amount > 0) return "Daily Necessities";
-            
             return "Unknown";
         }
 
         function processExcelData(data) {
             let headerIdx = data.findIndex(row => row.some(cell => cell && cell.toString().toLowerCase().includes('date')));
             if (headerIdx === -1) headerIdx = 0;
-
             const headerRow = data[headerIdx];
             const dateIdx = headerRow.findIndex(cell => cell && cell.toString().toLowerCase().includes('date'));
             const descIdx = headerRow.findIndex(cell => cell && cell.toString().toLowerCase().includes('details'));
@@ -256,29 +244,16 @@
                 const dateRaw = row[dateIdx];
                 const amount = cleanAmount(row[debitIdx]);
                 const desc = (row[descIdx] || "N/A").toString().replace(/"/g, '').trim();
-                
                 if (!dateRaw || amount === 0) return null;
-
                 const dateStr = dateRaw.toString();
                 let monthGroup = "Unknown";
                 const dateParts = dateStr.match(/[a-zA-Z]{3} \d{4}/);
-                if (dateParts) {
-                    monthGroup = dateParts[0];
-                } else {
+                if (dateParts) monthGroup = dateParts[0];
+                else {
                     const d = new Date(dateStr);
-                    if (!isNaN(d.getTime())) {
-                        monthGroup = d.toLocaleString('default', { month: 'short', year: 'numeric' });
-                    }
+                    if (!isNaN(d.getTime())) monthGroup = d.toLocaleString('default', { month: 'short', year: 'numeric' });
                 }
-
-                return {
-                    id: idx,
-                    date: dateStr,
-                    monthGroup: monthGroup,
-                    desc: desc,
-                    amount: amount,
-                    type: classify(amount, desc)
-                };
+                return { id: idx, date: dateStr, monthGroup: monthGroup, desc: desc, amount: amount, type: classify(amount, desc) };
             }).filter(t => t !== null);
 
             const months = [...new Set(transactions.map(t => t.monthGroup))];
@@ -290,21 +265,13 @@
                 opt.textContent = m;
                 mFilter.appendChild(opt);
             });
-
             renderUI();
-        }
-
-        function setSafeText(id, text) {
-            const el = document.getElementById(id);
-            if (el) el.innerText = text;
         }
 
         function renderUI() {
             const tableBody = document.getElementById('transactionTable');
             tableBody.innerHTML = '';
-            
             let stats = { total: 0, emi: 0, family: 0, shopping: 0, travel: 0, daily: 0, rentHome: 0, savings: 0, transport: 0, mobile: 0, unknown: 0 };
-
             const catFilter = document.getElementById('categoryFilter').value;
             const monthFilter = document.getElementById('monthFilter').value;
             const search = document.getElementById('tableSearch').value.toLowerCase();
@@ -353,13 +320,12 @@
                 tableBody.appendChild(tr);
             });
 
-            setSafeText('totalSpent', `₹${Math.round(stats.total).toLocaleString('en-IN')}`);
-            setSafeText('emiTotal', `₹${Math.round(stats.emi).toLocaleString('en-IN')}`);
-            setSafeText('familyTotal', `₹${Math.round(stats.family).toLocaleString('en-IN')}`);
-            setSafeText('shoppingTotal', `₹${Math.round(stats.shopping).toLocaleString('en-IN')}`);
-            setSafeText('travelTotal', `₹${Math.round(stats.travel).toLocaleString('en-IN')}`);
-            setSafeText('savingsTotal', `₹${Math.round(stats.savings).toLocaleString('en-IN')}`);
-            
+            document.getElementById('totalSpent').innerText = `₹${Math.round(stats.total).toLocaleString('en-IN')}`;
+            document.getElementById('emiTotal').innerText = `₹${Math.round(stats.emi).toLocaleString('en-IN')}`;
+            document.getElementById('familyTotal').innerText = `₹${Math.round(stats.family).toLocaleString('en-IN')}`;
+            document.getElementById('shoppingTotal').innerText = `₹${Math.round(stats.shopping).toLocaleString('en-IN')}`;
+            document.getElementById('travelTotal').innerText = `₹${Math.round(stats.travel).toLocaleString('en-IN')}`;
+            document.getElementById('savingsTotal').innerText = `₹${Math.round(stats.savings).toLocaleString('en-IN')}`;
             updateChart(stats);
         }
 
@@ -369,7 +335,6 @@
                 case 'Family': return 'bg-pink-50 border-pink-100 text-pink-600';
                 case 'Online Shopping': return 'bg-cyan-50 border-cyan-100 text-cyan-600';
                 case 'Travel': return 'bg-teal-50 border-teal-100 text-teal-600';
-                case 'Daily Necessities': return 'bg-blue-50 border-blue-100 text-blue-600';
                 case 'Savings': return 'bg-green-50 border-green-100 text-green-600';
                 default: return 'bg-gray-50 border-gray-200 text-gray-400';
             }
@@ -377,68 +342,37 @@
 
         function updateCategory(id, newValue) {
             const index = transactions.findIndex(t => t.id === id);
-            if (index !== -1) {
-                transactions[index].type = newValue;
-                renderUI();
-            }
+            if (index !== -1) { transactions[index].type = newValue; renderUI(); }
         }
 
         function updateChart(stats) {
-            const labels = [];
-            const data = [];
-            const colors = {
-                'EMI': '#e11d48', 'Family': '#db2777', 'Online Shopping': '#0891b2',
-                'Travel': '#0d9488', 'Rent': '#f43f5e', 'Home': '#f97316',
-                'Daily Necessities': '#3b82f6', 'Savings': '#10b981',
-                'Transportation': '#f59e0b', 'Mobile Recharge': '#8b5cf6', 'Unknown': '#94a3b8'
-            };
-            const bgColors = [];
-
+            const labels = []; const data = []; const bgColors = [];
+            const colors = { 'EMI': '#e11d48', 'Family': '#db2777', 'Online Shopping': '#0891b2', 'Travel': '#0d9488', 'Rent': '#f43f5e', 'Home': '#f97316', 'Daily Necessities': '#3b82f6', 'Savings': '#10b981', 'Transportation': '#f59e0b', 'Mobile Recharge': '#8b5cf6', 'Unknown': '#94a3b8' };
             Object.entries(stats).forEach(([key, val]) => {
                 if (key === 'total' || val === 0) return;
-                const friendlyName = {
-                    emi: 'EMI', family: 'Family', shopping: 'Shopping', 
-                    travel: 'Travel', daily: 'Daily', rentHome: 'Rent/Home', 
-                    savings: 'Savings', transport: 'Transport', mobile: 'Mobile', unknown: 'Misc'
-                }[key] || key;
-                labels.push(friendlyName);
-                data.push(val);
-                const mapKey = {
-                    emi: 'EMI', family: 'Family', shopping: 'Online Shopping',
-                    travel: 'Travel', daily: 'Daily Necessities', rentHome: 'Rent',
-                    savings: 'Savings', transport: 'Transportation', mobile: 'Mobile Recharge'
-                }[key] || 'Unknown';
+                const friendlyName = { emi: 'EMI', family: 'Family', shopping: 'Shopping', travel: 'Travel', daily: 'Daily', rentHome: 'Rent/Home', savings: 'Savings', transport: 'Transport', mobile: 'Mobile', unknown: 'Misc' }[key] || key;
+                labels.push(friendlyName); data.push(val);
+                const mapKey = { emi: 'EMI', family: 'Family', shopping: 'Online Shopping', travel: 'Travel', daily: 'Daily Necessities', rentHome: 'Rent', savings: 'Savings', transport: 'Transportation', mobile: 'Mobile Recharge' }[key] || 'Unknown';
                 bgColors.push(colors[mapKey]);
             });
-
             const ctx = document.getElementById('expenseChart').getContext('2d');
             if (chartInstance) chartInstance.destroy();
-            chartInstance = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{ data: data, backgroundColor: bgColors, borderWidth: 1, borderColor: '#ffffff' }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 10, font: { size: 9 } } } },
-                    cutout: '65%'
-                }
-            });
+            chartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: labels, datasets: [{ data: data, backgroundColor: bgColors, borderWidth: 1, borderColor: '#ffffff' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 10, font: { size: 9 } } } }, cutout: '65%' } });
         }
 
-        function exportToCSV() {
-            let csv = "Date,Description,Amount,Category,Month\n";
-            transactions.forEach(t => {
-                csv += `${t.date},"${t.desc.replace(/"/g, '""')}",${t.amount},${t.type},${t.monthGroup}\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'financial_analysis_report.csv';
-            a.click();
+        function exportToPDF() {
+            const wrapper = document.getElementById('tableWrapper');
+            // Remove overflow to show all rows for printing
+            wrapper.style.maxHeight = 'none';
+            wrapper.style.overflow = 'visible';
+            
+            // Short delay to ensure browser paints full table
+            setTimeout(() => {
+                window.print();
+                // Restore UI state after print dialog opens
+                wrapper.style.maxHeight = '500px';
+                wrapper.style.overflowY = 'auto';
+            }, 500);
         }
 
         document.getElementById('categoryFilter').addEventListener('change', renderUI);
