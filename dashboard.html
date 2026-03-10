@@ -6,18 +6,23 @@
     <title>Dashboard - Sharexpense</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Library for Excel Parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         .sidebar-item { @apply flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-all cursor-pointer; }
         .sidebar-item.active { @apply text-white bg-indigo-600 shadow-lg shadow-indigo-500/20; }
         .glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
-        .card { @apply bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between; }
-        .stat-label { @apply text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1; }
-        .stat-value { @apply text-lg font-bold text-gray-800; }
-        .edit-select { @apply bg-transparent border-none text-[10px] font-bold uppercase cursor-pointer focus:ring-0 p-0 w-full; }
-        #dropZone.dragover { @apply border-indigo-500 bg-indigo-50; }
+        
+        #authOverlay {
+            position: fixed;
+            inset: 0;
+            background: white;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
-        #authOverlay { position: fixed; inset: 0; background: white; z-index: 10000; display: flex; align-items: center; justify-content: center; }
         #sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         @media (max-width: 1023px) {
             #sidebar { transform: translateX(-100%); position: fixed; z-index: 50; }
@@ -26,12 +31,9 @@
 
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
-
-        @media print {
-            #sidebar, header, #uploadSection, .action-buttons, #manualViewHeader, .filter-bar { display: none !important; }
-            body { background: white; }
-            .max-w-7xl { max-width: 100% !important; }
-        }
+        
+        .drop-zone { border: 2px dashed #e2e8f0; transition: all 0.3s ease; }
+        .drop-zone.dragover { border-color: #6366f1; background: #f5f3ff; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex overflow-x-hidden">
@@ -73,7 +75,7 @@
                         <span>General</span>
                     </div>
                 </div>
-                <button onclick="document.getElementById('collectionModal').classList.remove('hidden')" class="sidebar-item w-full mt-2 text-indigo-400 border border-indigo-400/20 bg-indigo-400/5">
+                <button onclick="openNewCollectionModal()" class="sidebar-item w-full mt-2 text-indigo-400 border border-indigo-400/20 bg-indigo-400/5">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     <span>New List</span>
                 </button>
@@ -95,140 +97,155 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>
             <h1 class="font-bold text-gray-800">Sharexpense</h1>
+            <div id="userInitialsMobile" class="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold uppercase">?</div>
         </header>
 
         <main class="flex-grow overflow-y-auto p-4 md:p-8">
             <div class="max-w-7xl mx-auto">
-                
-                <!-- Manual Entry View -->
-                <div id="manualView" class="block">
-                    <header id="manualViewHeader" class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                        <div>
-                            <h2 class="text-3xl font-bold text-gray-800" id="welcomeUser">Hello!</h2>
-                            <p class="text-gray-500" id="currentCollectionText">General Expenses</p>
-                        </div>
-                        <button onclick="document.getElementById('modal').classList.remove('hidden')" class="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2">
+                <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                    <div>
+                        <h2 class="text-3xl font-bold text-gray-800" id="welcomeUser">Hello!</h2>
+                        <p class="text-gray-500" id="currentCollectionText">Default General Expenses</p>
+                    </div>
+                    <div class="flex items-center gap-4 w-full md:w-auto">
+                        <button id="addExpenseBtn" class="flex-grow md:flex-none bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             Add Expense
                         </button>
-                    </header>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                        <div class="lg:col-span-4 glass-card p-8 rounded-[2rem] shadow-sm">
-                            <h3 class="font-bold text-gray-800 mb-6 uppercase text-xs tracking-widest">Manual Spending</h3>
-                            <canvas id="manualChart"></canvas>
+                        <div class="hidden md:flex w-12 h-12 rounded-2xl bg-white shadow-sm border border-gray-100 items-center justify-center overflow-hidden">
+                            <img id="userImg" src="" alt="Profile" class="hidden w-full h-full object-cover">
+                            <span id="userInitials" class="text-indigo-600 font-bold text-lg uppercase">?</span>
                         </div>
-                        <div class="lg:col-span-8 glass-card p-8 rounded-[2rem] shadow-sm">
+                    </div>
+                </header>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div class="lg:col-span-4 glass-card p-8 rounded-[2rem] shadow-sm flex flex-col">
+                        <h3 class="font-bold text-gray-800 text-lg mb-6">Spending Analysis</h3>
+                        <div class="relative flex-grow min-h-[250px]">
+                            <canvas id="expenseChart"></canvas>
+                        </div>
+                        <div id="chartLegend" class="mt-8 space-y-3"></div>
+                    </div>
+
+                    <div class="lg:col-span-8 glass-card p-8 rounded-[2rem] shadow-sm">
+                        <h3 class="font-bold text-gray-800 text-lg mb-6">Transactions</h3>
+                        <div class="overflow-x-auto">
                             <table class="w-full text-left">
-                                <thead class="text-[10px] uppercase text-gray-400 font-bold border-b border-gray-50">
-                                    <tr><th class="pb-4">Item</th><th class="pb-4">Category</th><th class="pb-4 text-right">Amount</th></tr>
+                                <thead>
+                                    <tr class="text-gray-400 text-[10px] uppercase tracking-[0.2em] font-bold border-b border-gray-50">
+                                        <th class="pb-6">Item</th>
+                                        <th class="pb-6">Category</th>
+                                        <th class="pb-6">Date</th>
+                                        <th class="pb-6 text-right">Amount</th>
+                                    </tr>
                                 </thead>
-                                <tbody id="manualExpenseList" class="text-sm"></tbody>
+                                <tbody id="expenseList" class="text-sm"></tbody>
                             </table>
+                            <div id="emptyState" class="hidden py-20 text-center text-gray-400 italic">This collection is currently empty.</div>
                         </div>
                     </div>
                 </div>
-
-                <!-- Auto Entry View (The logic you provided) -->
-                <div id="autoView" class="hidden">
-                    <div id="uploadSection" class="mb-8">
-                        <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-[2rem] p-10 text-center transition-all bg-white cursor-pointer hover:border-indigo-400">
-                            <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" class="hidden">
-                            <div class="flex flex-col items-center">
-                                <svg class="w-12 h-12 text-indigo-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a2 2 0 00-2-2H5a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2zm0 0h2a2 2 0 002-2v-2a2 2 0 00-2-2H9m12 10v-2a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 00-2-2h-2a2 2 0 00-2 2v10m-6-10a2 2 0 00-2-2H5a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7z"/></svg>
-                                <p class="text-lg font-bold text-gray-700">Drop Statement for <span id="autoColName">List</span></p>
-                                <p class="text-sm text-gray-500 mt-1">Automatic grouping & analysis will be applied</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="autoDashboard" class="hidden">
-                        <div class="filter-bar flex flex-wrap items-center gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                            <select id="monthFilter" class="text-xs border rounded-lg px-3 py-2 bg-gray-50 outline-none"></select>
-                            <select id="categoryFilter" class="text-xs border rounded-lg px-3 py-2 bg-gray-50 outline-none">
-                                <option value="all">All Categories</option>
-                                <option value="EMI">EMI</option><option value="Family">Family</option><option value="Online Shopping">Shopping</option>
-                                <option value="Travel">Travel</option><option value="Rent">Rent</option><option value="Home">Home</option>
-                                <option value="Daily Necessities">Daily</option><option value="Savings">Savings</option><option value="Transportation">Transport</option>
-                                <option value="Mobile Recharge">Mobile</option><option value="Unknown">Unknown</option>
-                            </select>
-                            <input type="text" id="tableSearch" placeholder="Search..." class="text-xs border rounded-lg px-3 py-2 bg-gray-50 outline-none flex-grow">
-                        </div>
-
-                        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
-                            <div class="card bg-slate-900 text-white border-none"><p class="stat-label">Total</p><p class="stat-value text-white" id="totalSpent">₹0</p></div>
-                            <div class="card border-l-4 border-rose-500"><p class="stat-label">EMI</p><p class="stat-value" id="emiTotal">₹0</p></div>
-                            <div class="card border-l-4 border-pink-500"><p class="stat-label">Family</p><p class="stat-value" id="familyTotal">₹0</p></div>
-                            <div class="card border-l-4 border-cyan-500"><p class="stat-label">Shopping</p><p class="stat-value" id="shoppingTotal">₹0</p></div>
-                            <div class="card border-l-4 border-teal-500"><p class="stat-label">Travel</p><p class="stat-value" id="travelTotal">₹0</p></div>
-                            <div class="card border-l-4 border-green-500"><p class="stat-label">Savings</p><p class="stat-value" id="savingsTotal">₹0</p></div>
-                        </div>
-
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div class="lg:col-span-2 space-y-6">
-                                <div class="card h-[400px]"><canvas id="autoChart"></canvas></div>
-                                <div class="card overflow-hidden">
-                                    <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
-                                        <table class="w-full text-left">
-                                            <thead class="sticky top-0 bg-gray-100 text-[10px] uppercase font-bold border-b">
-                                                <tr><th class="px-4 py-2">Date</th><th class="px-4 py-2">Details</th><th class="px-4 py-2 text-right">Debit</th><th class="px-4 py-2 text-center">Type</th></tr>
-                                            </thead>
-                                            <tbody id="autoTable" class="divide-y divide-gray-50 text-[11px]"></tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="space-y-6 action-buttons">
-                                <div class="card bg-indigo-600 text-white border-none p-6">
-                                    <h2 class="font-bold mb-4">Actions</h2>
-                                    <button onclick="window.print()" class="w-full py-3 bg-white text-indigo-600 rounded-xl font-bold text-sm mb-3">Print Report</button>
-                                    <button onclick="window.location.reload()" class="w-full text-xs text-indigo-200 underline">Reset View</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
             </div>
         </main>
     </div>
 
-    <!-- Modals (Manual/Collection) -->
+    <!-- Expense Modal -->
     <div id="modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[11000] flex items-center justify-center p-4">
-        <div class="bg-white rounded-[2.5rem] w-full max-w-md p-10">
-            <h3 class="text-2xl font-bold mb-8">New Expense</h3>
-            <form id="expenseForm" class="space-y-4">
-                <input type="text" id="desc" placeholder="Description" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 outline-none">
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="number" id="amt" placeholder="Amount" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 outline-none">
-                    <select id="cat" onchange="if(this.value==='ADD_NEW') window.location.href='rules.html'" class="w-full px-5 py-4 rounded-2xl bg-gray-50 outline-none"></select>
+        <div class="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl font-bold text-gray-900">New Expense</h3>
+                <button onclick="document.getElementById('modal').classList.add('hidden')" class="p-2 hover:bg-gray-100 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <form id="expenseForm" class="space-y-6">
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Description</label>
+                    <input type="text" id="desc" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
-                <input type="date" id="date" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 outline-none">
-                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl">Save</button>
-                <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" class="w-full text-gray-400 text-sm">Cancel</button>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-gray-400 uppercase">Amount (₹)</label>
+                        <input type="number" id="amt" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-gray-400 uppercase">Category</label>
+                        <select id="cat" onchange="if(this.value==='ADD_NEW') window.location.href='rules.html'" class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none"></select>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Date</label>
+                    <input type="date" id="date" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all">Save Transaction</button>
             </form>
         </div>
     </div>
 
-    <div id="collectionModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[11000] flex items-center justify-center p-4">
-        <div class="bg-white rounded-[2.5rem] w-full max-w-md p-10">
-            <h3 class="text-2xl font-bold mb-8">New List</h3>
-            <form id="collectionForm" class="space-y-6">
-                <input type="text" id="colName" placeholder="List Name (e.g. Goa Trip)" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 outline-none">
-                <div class="grid grid-cols-2 gap-3">
-                    <label class="cursor-pointer border-2 border-transparent p-4 bg-gray-50 rounded-2xl has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50 transition-all text-center">
-                        <input type="radio" name="colType" value="manual" checked class="hidden">
-                        <span class="block font-bold text-sm">Manual</span>
-                        <span class="text-[10px] text-gray-500">Regular Entry</span>
-                    </label>
-                    <label class="cursor-pointer border-2 border-transparent p-4 bg-gray-50 rounded-2xl has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50 transition-all text-center">
-                        <input type="radio" name="colType" value="auto" class="hidden">
-                        <span class="block font-bold text-sm">Auto</span>
-                        <span class="text-[10px] text-gray-500">Excel Upload</span>
-                    </label>
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[11000] flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] w-full max-w-xl p-10 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-2xl font-bold text-gray-900">Upload Expenses</h3>
+                    <p class="text-gray-400 text-sm">Upload Excel (.xlsx, .csv) to auto-classify</p>
                 </div>
-                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl">Create</button>
-                <button type="button" onclick="document.getElementById('collectionModal').classList.add('hidden')" class="w-full text-gray-400 text-sm">Cancel</button>
+                <button onclick="document.getElementById('uploadModal').classList.add('hidden')" class="p-2 hover:bg-gray-100 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            
+            <div id="dropZone" class="drop-zone rounded-[1.5rem] p-12 text-center cursor-pointer mb-6" onclick="document.getElementById('fileInput').click()">
+                <div class="bg-indigo-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <svg class="text-indigo-600" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <p class="font-bold text-gray-800">Click or drag to upload sheet</p>
+                <p class="text-gray-400 text-xs mt-1">Requirements: Description, Amount, Date columns</p>
+                <input type="file" id="fileInput" class="hidden" accept=".xlsx, .xls, .csv">
+            </div>
+
+            <div id="uploadProgress" class="hidden space-y-4">
+                <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                    <div id="progressBar" class="bg-indigo-600 h-full w-0 transition-all"></div>
+                </div>
+                <p id="progressText" class="text-center text-xs font-bold text-gray-500 uppercase tracking-widest">Processing Rules...</p>
+            </div>
+
+            <button id="startUploadBtn" disabled class="w-full py-5 bg-gray-200 text-gray-400 cursor-not-allowed rounded-2xl font-bold shadow-xl transition-all">Start Batch Import</button>
+        </div>
+    </div>
+
+    <!-- Collection Modal -->
+    <div id="collectionModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[11000] flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl font-bold text-gray-900">New List</h3>
+                <button onclick="document.getElementById('collectionModal').classList.add('hidden')" class="p-2 hover:bg-gray-100 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <form id="collectionForm" class="space-y-6">
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase">List Name</label>
+                    <input type="text" id="colName" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="e.g. Goa Trip">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Entry Type</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="cursor-pointer border-2 border-transparent p-4 bg-gray-50 rounded-2xl text-center has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50 transition-all">
+                            <input type="radio" name="colType" value="manual" checked class="hidden">
+                            <span class="block font-bold text-sm">Manual</span>
+                            <span class="text-[10px] text-gray-500">Regular Entry</span>
+                        </label>
+                        <label class="cursor-pointer border-2 border-transparent p-4 bg-gray-50 rounded-2xl text-center has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50 transition-all">
+                            <input type="radio" name="colType" value="auto" class="hidden">
+                            <span class="block font-bold text-sm">Auto</span>
+                            <span class="text-[10px] text-gray-500">Excel Upload</span>
+                        </label>
+                    </div>
+                </div>
+                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700">Create Sub-collection</button>
             </form>
         </div>
     </div>
@@ -236,7 +253,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, addDoc, onSnapshot, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCpJFhOzhTnmUwiVs3ZvbH17EJdpawcy3k",
@@ -253,223 +270,336 @@
 
         let activeUser = null;
         let activeCollection = 'expense';
-        let manualChart = null;
-        let autoChart = null;
-        let unsubscribeManual = null;
-        let autoTransactions = [];
+        let chart = null;
+        let unsubscribeExpenses = null;
+        let classificationRules = [];
+        let parsedExcelData = null;
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 activeUser = user;
-                initDashboard(user);
+                await initDashboard(user);
                 document.getElementById('authOverlay').style.display = 'none';
-            } else { window.location.href = 'login.html'; }
+            } else {
+                window.location.href = 'login.html';
+            }
         });
 
         async function initDashboard(user) {
-            const profile = await getDoc(doc(db, "User", user.uid));
-            if (profile.exists()) document.getElementById('welcomeUser').innerText = `Hello, ${profile.data().name.split(' ')[0]}!`;
+            const profileSnap = await getDoc(doc(db, "User", user.uid));
+            if (profileSnap.exists()) {
+                const data = profileSnap.data();
+                document.getElementById('welcomeUser').innerText = `Hello, ${data.name.split(' ')[0]}!`;
+                document.getElementById('userInitials').innerText = data.name.charAt(0);
+                document.getElementById('userInitialsMobile').innerText = data.name.charAt(0);
+                if (data.photo) {
+                    document.getElementById('userImg').src = data.photo;
+                    document.getElementById('userImg').classList.remove('hidden');
+                    document.getElementById('userInitials').classList.add('hidden');
+                }
+            }
 
-            onSnapshot(collection(db, "User", user.uid, "Catagory"), (snap) => {
-                const sel = document.getElementById('cat'); sel.innerHTML = '';
-                snap.forEach(d => { const o = document.createElement('option'); o.value = d.data().name; o.textContent = d.data().name; sel.appendChild(o); });
-                const add = document.createElement('option'); add.value = "ADD_NEW"; add.textContent = "+ Manage Categories"; add.className = "text-indigo-600 font-bold"; sel.appendChild(add);
+            // Sync Rules & Categories for Auto Classification
+            onSnapshot(collection(db, "User", user.uid, "Catagory"), (snapshot) => {
+                const catSelect = document.getElementById('cat');
+                catSelect.innerHTML = '';
+                classificationRules = [];
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const categoryName = data.name || doc.id;
+                    
+                    // Store rule for classification
+                    classificationRules.push({
+                        name: categoryName,
+                        keywords: (data.keywords || '').split(',').map(k => k.trim().toLowerCase()).filter(k => k),
+                        priority: parseInt(data.priority) || 0
+                    });
+
+                    const opt = document.createElement('option');
+                    opt.value = categoryName;
+                    opt.textContent = categoryName;
+                    catSelect.appendChild(opt);
+                });
+                
+                // Sort rules by priority descending
+                classificationRules.sort((a, b) => b.priority - a.priority);
+
+                const addOpt = document.createElement('option');
+                addOpt.value = "ADD_NEW"; 
+                addOpt.textContent = "+ Manage Categories";
+                addOpt.className = "text-indigo-600 font-bold";
+                catSelect.appendChild(addOpt);
             });
 
-            onSnapshot(collection(db, "User", user.uid, "CollectionsMetadata"), (snap) => {
+            // Metadata Sync for Sidebar
+            onSnapshot(collection(db, "User", user.uid, "CollectionsMetadata"), (snapshot) => {
                 const list = document.getElementById('collectionsList');
-                const def = document.getElementById('defaultColItem');
-                list.innerHTML = ''; list.appendChild(def);
-                snap.forEach(d => {
-                    const data = d.data();
+                const defaultItem = document.getElementById('defaultColItem');
+                list.innerHTML = '';
+                list.appendChild(defaultItem);
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
                     const div = document.createElement('div');
-                    div.className = `sidebar-item ${activeCollection === d.id ? 'active' : ''}`;
-                    div.dataset.id = d.id;
-                    div.onclick = () => window.switchCollection(d.id, data.name, data.type);
-                    div.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>${data.name}</span>`;
+                    div.className = `sidebar-item ${activeCollection === doc.id ? 'active' : ''}`;
+                    div.dataset.id = doc.id;
+                    div.onclick = () => window.switchCollection(doc.id, data.name, data.type);
+                    div.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        <span>${data.name}</span>
+                        ${data.type === 'auto' ? '<span class="ml-auto text-[8px] bg-indigo-500/20 text-indigo-400 px-1 rounded px-1.5 py-0.5">AUTO</span>' : ''}
+                    `;
                     list.appendChild(div);
                 });
             });
+
             window.switchCollection('expense', 'General', 'manual');
         }
 
-        window.switchCollection = (id, name, type) => {
-            activeCollection = id;
-            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.toggle('active', el.dataset.id === id));
+        window.switchCollection = (colId, name = 'General', type = 'manual') => {
+            activeCollection = colId;
+            document.getElementById('currentCollectionText').innerText = `${name} (${type})`;
             
+            const addBtn = document.getElementById('addExpenseBtn');
             if (type === 'auto') {
-                document.getElementById('manualView').classList.add('hidden');
-                document.getElementById('autoView').classList.remove('hidden');
-                document.getElementById('autoColName').innerText = name;
-                document.getElementById('uploadSection').classList.remove('hidden');
-                document.getElementById('autoDashboard').classList.add('hidden');
+                addBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload Sheet`;
+                addBtn.onclick = () => document.getElementById('uploadModal').classList.remove('hidden');
             } else {
-                document.getElementById('manualView').classList.remove('hidden');
-                document.getElementById('autoView').classList.add('hidden');
-                document.getElementById('currentCollectionText').innerText = name;
-                syncManualData();
+                addBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Expense`;
+                addBtn.onclick = () => document.getElementById('modal').classList.remove('hidden');
             }
+
+            if (unsubscribeExpenses) unsubscribeExpenses();
+
+            document.querySelectorAll('.sidebar-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.id === colId);
+            });
+
+            const q = query(collection(db, "User", activeUser.uid, colId), orderBy("date", "desc"));
+            unsubscribeExpenses = onSnapshot(q, (snapshot) => {
+                const data = [];
+                snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
+                refreshExpensesUI(data);
+            }, (err) => console.error("Query Error:", err));
+
             if (window.innerWidth < 1024) toggleSidebar(false);
         };
 
-        function syncManualData() {
-            if (unsubscribeManual) unsubscribeManual();
-            const q = query(collection(db, "User", activeUser.uid, activeCollection), orderBy("date", "desc"));
-            unsubscribeManual = onSnapshot(q, (snap) => {
-                const data = []; snap.forEach(d => data.push(d.data()));
-                renderManualUI(data);
-            });
+        // --- Classification Logic ---
+        function classifyExpense(description) {
+            const desc = description.toLowerCase();
+            for (const rule of classificationRules) {
+                if (rule.keywords.some(k => desc.includes(k))) {
+                    return rule.name;
+                }
+            }
+            return "Misc";
         }
 
-        function renderManualUI(expenses) {
-            const list = document.getElementById('manualExpenseList');
-            list.innerHTML = expenses.map(e => `
-                <tr class="border-b border-gray-50">
-                    <td class="py-4 font-bold text-gray-800">${e.description}</td>
-                    <td class="py-4"><span class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] uppercase font-black">${e.category}</span></td>
-                    <td class="py-4 text-right font-bold">₹${parseFloat(e.amount).toLocaleString()}</td>
-                </tr>
-            `).join('');
-            
-            const totals = {}; expenses.forEach(e => totals[e.category] = (totals[e.category] || 0) + parseFloat(e.amount));
-            if (manualChart) manualChart.destroy();
-            manualChart = new Chart(document.getElementById('manualChart'), {
-                type: 'doughnut',
-                data: { labels: Object.keys(totals), datasets: [{ data: Object.values(totals), backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444'] }] },
-                options: { cutout: '80%', plugins: { legend: { display: false } } }
-            });
-        }
-
-        // --- Auto Entry Logic ---
-        const dropZone = document.getElementById('dropZone');
+        // --- Excel Handling ---
         const fileInput = document.getElementById('fileInput');
-        dropZone.onclick = () => fileInput.click();
+        const dropZone = document.getElementById('dropZone');
+        const startUploadBtn = document.getElementById('startUploadBtn');
+
         fileInput.onchange = (e) => handleFile(e.target.files[0]);
-        
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
+        dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+        dropZone.ondrop = (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); };
+
         function handleFile(file) {
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
-                processAutoData(json);
-                document.getElementById('uploadSection').classList.add('hidden');
-                document.getElementById('autoDashboard').classList.remove('hidden');
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(firstSheet);
+                
+                // Minimal validation: Check if mandatory columns exist
+                if (rows.length > 0) {
+                    const keys = Object.keys(rows[0]).map(k => k.toLowerCase());
+                    if (keys.includes('description') && keys.includes('amount') && (keys.includes('date') || keys.includes('time'))) {
+                        parsedExcelData = rows;
+                        startUploadBtn.disabled = false;
+                        startUploadBtn.className = "w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all";
+                        startUploadBtn.innerText = `Process ${rows.length} Transactions`;
+                        dropZone.innerHTML = `<p class="font-bold text-indigo-600">File Loaded: ${file.name}</p><p class="text-xs text-gray-400 mt-1">Found ${rows.length} entries. Click 'Start Batch' below.</p>`;
+                    } else {
+                        alert("Sheet must contain columns: Description, Amount, and Date");
+                    }
+                }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        function classify(amt, desc) {
-            const d = desc.toLowerCase();
-            if (d.includes("upi lite")) return "Daily Necessities";
-            if (d.includes("pratima") || d.includes("family")) return "Family";
-            if (d.includes("avirup") || d.includes("stock") || d.includes("zerodha") || d.includes("invest")) return "Savings";
-            if (d.includes("idfc") || d.includes("loan") || d.includes("emi")) return "EMI";
-            if (d.includes("indigo") || d.includes("flight") || d.includes("irctc")) return "Travel";
-            if (d.includes("amazon") || d.includes("flipkart") || d.includes("myntra")) return "Online Shopping";
-            if (d.includes("uber") || d.includes("ola") || d.includes("rapido")) return "Transportation";
-            if (d.includes("jio") || d.includes("airtel") || d.includes("recharge")) return "Mobile Recharge";
-            if (d.includes("raja") || amt === 11000 || amt === 3000) return "Rent";
-            if (amt === 7000 || amt === 9000) return "Home";
-            return "Unknown";
-        }
+        startUploadBtn.onclick = async () => {
+            if (!parsedExcelData || !activeUser) return;
+            
+            startUploadBtn.disabled = true;
+            document.getElementById('uploadProgress').classList.remove('hidden');
+            const bar = document.getElementById('progressBar');
+            const txt = document.getElementById('progressText');
+            
+            const batchSize = 100; // Firestore batch limit is 500, but 100 is safer for performance
+            let count = 0;
+            
+            for (let i = 0; i < parsedExcelData.length; i += batchSize) {
+                const batch = writeBatch(db);
+                const chunk = parsedExcelData.slice(i, i + batchSize);
+                
+                chunk.forEach(row => {
+                    // Normalize keys
+                    const rowData = {};
+                    Object.keys(row).forEach(k => rowData[k.toLowerCase()] = row[k]);
 
-        function processAutoData(data) {
-            let hIdx = data.findIndex(r => r.some(c => c && c.toString().toLowerCase().includes('date')));
-            if (hIdx === -1) hIdx = 0;
-            const header = data[hIdx];
-            const dIdx = header.findIndex(c => c && c.toString().toLowerCase().includes('date'));
-            const descIdx = header.findIndex(c => c && c.toString().toLowerCase().includes('details'));
-            const amtIdx = header.findIndex(c => c && c.toString().toLowerCase().includes('debit'));
+                    const description = rowData.description || "No description";
+                    const amount = parseFloat(rowData.amount) || 0;
+                    const dateRaw = rowData.date;
+                    
+                    // Format date (Excel often stores dates as numbers)
+                    let formattedDate = new Date().toISOString().split('T')[0];
+                    if (dateRaw) {
+                        const d = isNaN(dateRaw) ? new Date(dateRaw) : new Date((dateRaw - 25569) * 86400 * 1000);
+                        if (!isNaN(d)) formattedDate = d.toISOString().split('T')[0];
+                    }
 
-            autoTransactions = data.slice(hIdx + 1).map((r, i) => {
-                const amt = Math.abs(parseFloat((r[amtIdx] || "0").toString().replace(/[",]/g, '')));
-                if (!r[dIdx] || isNaN(amt) || amt === 0) return null;
-                const dStr = r[dIdx].toString();
-                let mGrp = "Unknown";
-                const parts = dStr.match(/[a-zA-Z]{3} \d{4}/);
-                if (parts) mGrp = parts[0];
-                return { id: i, date: dStr, monthGroup: mGrp, desc: (r[descIdx] || "N/A"), amount: amt, type: classify(amt, r[descIdx] || "") };
-            }).filter(t => t !== null);
+                    const category = classifyExpense(description);
+                    
+                    const docRef = doc(collection(db, "User", activeUser.uid, activeCollection));
+                    batch.set(docRef, {
+                        description,
+                        amount,
+                        category,
+                        date: formattedDate,
+                        createdAt: new Date().toISOString(),
+                        source: 'excel_import'
+                    });
+                });
 
-            const months = [...new Set(autoTransactions.map(t => t.monthGroup))];
-            const mFilter = document.getElementById('monthFilter');
-            mFilter.innerHTML = '<option value="all">All Time</option>' + months.map(m => `<option value="${m}">${m}</option>`).join('');
-            renderAutoUI();
-        }
+                await batch.commit();
+                count += chunk.length;
+                const percent = Math.round((count / parsedExcelData.length) * 100);
+                bar.style.width = percent + '%';
+                txt.innerText = `Importing: ${count} / ${parsedExcelData.length}`;
+            }
 
-        function renderAutoUI() {
-            const tbody = document.getElementById('autoTable'); tbody.innerHTML = '';
-            let stats = { total: 0, emi: 0, family: 0, shopping: 0, travel: 0, savings: 0 };
-            const cf = document.getElementById('categoryFilter').value;
-            const mf = document.getElementById('monthFilter').value;
-            const sf = document.getElementById('tableSearch').value.toLowerCase();
-
-            autoTransactions.forEach(t => {
-                if (mf !== 'all' && t.monthGroup !== mf) return;
-                if (cf !== 'all' && t.type !== cf) return;
-                if (sf && !t.desc.toLowerCase().includes(sf)) return;
-
-                stats.total += t.amount;
-                if (t.type === "EMI") stats.emi += t.amount;
-                else if (t.type === "Family") stats.family += t.amount;
-                else if (t.type === "Online Shopping") stats.shopping += t.amount;
-                else if (t.type === "Travel") stats.travel += t.amount;
-                else if (t.type === "Savings") stats.savings += t.amount;
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="px-4 py-2">${t.date}</td>
-                    <td class="px-4 py-2 truncate max-w-[150px]">${t.desc}</td>
-                    <td class="px-4 py-2 text-right font-bold">₹${t.amount.toLocaleString()}</td>
-                    <td class="px-4 py-2 text-center"><span class="px-2 py-0.5 border rounded text-[8px] font-bold uppercase">${t.type}</span></td>
+            txt.innerText = "Import Complete!";
+            setTimeout(() => {
+                document.getElementById('uploadModal').classList.add('hidden');
+                document.getElementById('uploadProgress').classList.add('hidden');
+                startUploadBtn.disabled = false;
+                parsedExcelData = null;
+                // Reset dropzone
+                dropZone.innerHTML = `
+                    <div class="bg-indigo-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <svg class="text-indigo-600" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    </div>
+                    <p class="font-bold text-gray-800">Click or drag to upload sheet</p>
                 `;
-                tbody.appendChild(tr);
-            });
+            }, 1500);
+        };
 
-            document.getElementById('totalSpent').innerText = `₹${Math.round(stats.total).toLocaleString()}`;
-            document.getElementById('emiTotal').innerText = `₹${Math.round(stats.emi).toLocaleString()}`;
-            document.getElementById('familyTotal').innerText = `₹${Math.round(stats.family).toLocaleString()}`;
-            document.getElementById('shoppingTotal').innerText = `₹${Math.round(stats.shopping).toLocaleString()}`;
-            document.getElementById('travelTotal').innerText = `₹${Math.round(stats.travel).toLocaleString()}`;
-            document.getElementById('savingsTotal').innerText = `₹${Math.round(stats.savings).toLocaleString()}`;
+        // --- Standard Dashboard Logic ---
 
-            if (autoChart) autoChart.destroy();
-            autoChart = new Chart(document.getElementById('autoChart'), {
-                type: 'doughnut',
-                data: { labels: ['EMI', 'Family', 'Shopping', 'Travel', 'Savings'], datasets: [{ data: [stats.emi, stats.family, stats.shopping, stats.travel, stats.savings], backgroundColor: ['#e11d48', '#db2777', '#0891b2', '#0d9488', '#10b981'] }] },
-                options: { responsive: true, maintainAspectRatio: false, cutout: '70%' }
-            });
+        function refreshExpensesUI(expenses) {
+            const tbody = document.getElementById('expenseList');
+            const empty = document.getElementById('emptyState');
+            
+            if (expenses.length === 0) {
+                tbody.innerHTML = '';
+                empty.classList.remove('hidden');
+            } else {
+                empty.classList.add('hidden');
+                tbody.innerHTML = expenses.map(e => `
+                    <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                        <td class="py-5 font-semibold text-gray-800">${e.description}</td>
+                        <td class="py-5"><span class="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase">${e.category}</span></td>
+                        <td class="py-5 text-gray-400 text-xs">${new Date(e.date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</td>
+                        <td class="py-5 text-right font-bold text-gray-900">₹${parseFloat(e.amount).toLocaleString()}</td>
+                    </tr>
+                `).join('');
+            }
+            updateChart(expenses);
         }
 
-        document.getElementById('categoryFilter').onchange = renderAutoUI;
-        document.getElementById('monthFilter').onchange = renderAutoUI;
-        document.getElementById('tableSearch').oninput = renderAutoUI;
+        function updateChart(expenses) {
+            const totals = {};
+            expenses.forEach(e => totals[e.category] = (totals[e.category] || 0) + parseFloat(e.amount));
+            const labels = Object.keys(totals);
+            const values = Object.values(totals);
+            const palette = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6'];
+
+            if (chart) chart.destroy();
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{ data: values, backgroundColor: palette, borderWidth: 0, cutout: '75%', hoverOffset: 4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            const legend = document.getElementById('chartLegend');
+            legend.innerHTML = labels.map((l, i) => `
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-2.5 h-2.5 rounded-full" style="background:${palette[i % palette.length]}"></div>
+                        <span class="text-sm font-medium text-gray-500">${l}</span>
+                    </div>
+                    <span class="text-sm font-bold text-gray-900">₹${values[i].toLocaleString()}</span>
+                </div>
+            `).join('');
+        }
+
+        window.toggleSidebar = (show) => {
+            const sb = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            sb.classList.toggle('open', show);
+            overlay.classList.toggle('hidden', !show);
+        };
+
+        window.openNewCollectionModal = () => {
+            document.getElementById('collectionModal').classList.remove('hidden');
+        };
 
         document.getElementById('expenseForm').onsubmit = async (e) => {
             e.preventDefault();
-            await addDoc(collection(db, "User", activeUser.uid, activeCollection), {
+            const cat = document.getElementById('cat').value;
+            if (cat === "ADD_NEW") return;
+
+            const data = {
                 description: document.getElementById('desc').value,
                 amount: document.getElementById('amt').value,
-                category: document.getElementById('cat').value,
-                date: document.getElementById('date').value
-            });
+                category: cat,
+                date: document.getElementById('date').value,
+                createdAt: new Date().toISOString()
+            };
+
+            await addDoc(collection(db, "User", activeUser.uid, activeCollection), data);
             document.getElementById('modal').classList.add('hidden');
             e.target.reset();
+            document.getElementById('date').valueAsDate = new Date();
         };
 
         document.getElementById('collectionForm').onsubmit = async (e) => {
             e.preventDefault();
-            const name = document.getElementById('colName').value;
+            const rawName = document.getElementById('colName').value.trim();
             const type = document.querySelector('input[name="colType"]:checked').value;
-            const id = name.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now();
-            await setDoc(doc(db, "User", activeUser.uid, "CollectionsMetadata", id), { name, type });
+            
+            const metadataId = rawName.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now();
+
+            await setDoc(doc(db, "User", activeUser.uid, "CollectionsMetadata", metadataId), { 
+                name: rawName, 
+                type: type 
+            });
+
             document.getElementById('collectionModal').classList.add('hidden');
-            window.switchCollection(id, name, type);
+            e.target.reset();
+            window.switchCollection(metadataId, rawName, type);
         };
 
-        window.toggleSidebar = (s) => document.getElementById('sidebar').classList.toggle('open', s);
         window.logoutUser = () => signOut(auth).then(() => window.location.href = 'login.html');
         document.getElementById('date').valueAsDate = new Date();
     </script>
