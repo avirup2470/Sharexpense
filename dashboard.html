@@ -149,12 +149,7 @@
                     <div class="space-y-2">
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Category</label>
                         <select id="cat" class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 transition-all outline-none">
-                            <option>Food</option>
-                            <option>Transport</option>
-                            <option>Rent</option>
-                            <option>Leisure</option>
-                            <option>Family</option>
-                            <option>Other</option>
+                            <option value="misc">Misc</option>
                         </select>
                     </div>
                 </div>
@@ -170,7 +165,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, collection, addDoc, onSnapshot, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCpJFhOzhTnmUwiVs3ZvbH17EJdpawcy3k",
@@ -193,7 +188,7 @@
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 activeUser = user;
-                // Pre-fetch profile and setup listeners before showing UI
+                // Pre-fetch profile, categories and setup listeners before showing UI
                 await setupDashboard(user);
                 document.getElementById('authOverlay').style.display = 'none';
             } else {
@@ -218,6 +213,42 @@
                     document.getElementById('userInitials').innerText = data.name.charAt(0);
                 }
             }
+
+            // Real-time Category Sync
+            const catCol = collection(db, "User", user.uid, "Catagory");
+            onSnapshot(catCol, (snapshot) => {
+                const catSelect = document.getElementById('cat');
+                catSelect.innerHTML = '';
+                
+                if (snapshot.empty) {
+                    const opt = document.createElement('option');
+                    opt.value = 'Misc';
+                    opt.textContent = 'Misc';
+                    catSelect.appendChild(opt);
+                } else {
+                    snapshot.forEach(doc => {
+                        const opt = document.createElement('option');
+                        const catName = doc.data().name || doc.id;
+                        opt.value = catName;
+                        opt.textContent = catName;
+                        catSelect.appendChild(opt);
+                    });
+                }
+
+                // Add "Add Category" option at the end
+                const addOpt = document.createElement('option');
+                addOpt.value = "ADD_NEW";
+                addOpt.textContent = "+ Add Category";
+                addOpt.className = "text-indigo-600 font-bold";
+                catSelect.appendChild(addOpt);
+            });
+
+            // Category redirect listener
+            document.getElementById('cat').addEventListener('change', (e) => {
+                if (e.target.value === "ADD_NEW") {
+                    window.location.href = "rules.html";
+                }
+            });
 
             // Real-time Data Sync
             const q = query(collection(db, "User", user.uid, "expense"), orderBy("date", "desc"));
@@ -279,10 +310,15 @@
         // Add Logic
         document.getElementById('expenseForm').onsubmit = async (e) => {
             e.preventDefault();
+            const selectedCat = document.getElementById('cat').value;
+            
+            // Prevent adding expense with redirect sentinel
+            if (selectedCat === "ADD_NEW") return;
+
             const expense = {
                 description: document.getElementById('desc').value,
                 amount: document.getElementById('amt').value,
-                category: document.getElementById('cat').value,
+                category: selectedCat,
                 date: document.getElementById('date').value,
                 createdAt: new Date().toISOString()
             };
