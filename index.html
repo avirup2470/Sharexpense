@@ -228,7 +228,7 @@
             if (d.includes("jio") || d.includes("airtel") || d.includes("recharge") || d.includes("vi ")) return "Mobile Recharge";
             if (d.includes("raja") || amount === 11000 || amount === 3000) return "Rent";
             if (amount === 7000 || amount === 9000) return "Home";
-            if (amount < 500 && amount > 0) return "Daily Necessities";
+            if (amount <= 500 && amount > 0) return "Daily Necessities";
             return "Unknown";
         }
 
