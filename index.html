@@ -217,13 +217,13 @@
 
         function classify(amount, desc) {
             const d = desc.toLowerCase();
+            if (d.includes("upi lite")) return "Daily Necessities";
             if (d.includes("pratima chakraborty") || d.includes("pratima")) return "Family";
             if ((d.includes("avirup chakraborty") || d.includes("avirup") || d.includes("stock") || d.includes("invest") || d.includes("zerodha") || d.includes("fixed deposit") || d.includes("indstocks")) && !d.includes("lite")) return "Savings";
             if (d.includes("idfc") || d.includes("loan") || d.includes("finance") || d.includes("emi ")) return "EMI";
             if (d.includes("chakraborty") || d.includes("family")) return "Family";
             if (d.includes("ixigo") || d.includes("indigo") || d.includes("flight") || d.includes("irctc") || d.includes("makemytrip") || d.includes("cleartrip") || d.includes("vistara") || d.includes("air india")) return "Travel";
             if (d.includes("amazon") || d.includes("macfos") || d.includes("flipkart") || d.includes("myntra") || d.includes("meesho") || d.includes("ajio") || d.includes("nykaa") || d.includes("baazar")) return "Online Shopping";
-            if (d.includes("upi lite")) return "Daily Necessities";
             if (d.includes("uber") || d.includes("ola") || d.includes("rapido") || d.includes("namma yatri")) return "Transportation";
             if (d.includes("jio") || d.includes("airtel") || d.includes("recharge") || d.includes("vi ")) return "Mobile Recharge";
             if (d.includes("raja") || amount === 11000 || amount === 3000) return "Rent";
