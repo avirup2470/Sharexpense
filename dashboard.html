@@ -21,83 +21,89 @@
             justify-content: center;
         }
 
-        /* Sidebar Transition */
-        #sidebar { transition: transform 0.3s ease-in-out; }
+        #sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         @media (max-width: 1023px) {
             #sidebar { transform: translateX(-100%); position: fixed; z-index: 50; }
             #sidebar.open { transform: translateX(0); }
         }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex overflow-x-hidden">
 
-    <!-- Auth Guard Overlay -->
     <div id="authOverlay">
         <div class="text-center">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-            <p class="mt-4 text-gray-500 font-medium animate-pulse">Verifying access...</p>
+            <p class="mt-4 text-gray-500 font-medium">Verifying access...</p>
         </div>
     </div>
 
-    <!-- Mobile Overlay -->
-    <div id="mobileOverlay" onclick="toggleSidebar()" class="hidden fixed inset-0 bg-black/50 z-40 lg:hidden"></div>
+    <div id="mobileOverlay" onclick="toggleSidebar(false)" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"></div>
 
     <!-- Sidebar -->
-    <aside id="sidebar" class="w-64 bg-gray-900 text-white flex flex-col p-6 h-screen shrink-0">
-        <div class="flex items-center justify-between mb-10 px-2">
+    <aside id="sidebar" class="w-64 bg-gray-900 text-white flex flex-col p-6 h-screen shrink-0 border-r border-gray-800">
+        <div class="flex items-center justify-between mb-8 px-2">
             <div class="flex items-center gap-3">
                 <div class="bg-indigo-600 p-2 rounded-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </div>
                 <h1 class="text-xl font-bold tracking-tight">Sharexpense</h1>
             </div>
-            <button onclick="toggleSidebar()" class="lg:hidden text-gray-400">
+            <button onclick="toggleSidebar(false)" class="lg:hidden text-gray-400">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
 
-        <nav class="flex-grow space-y-1 overflow-y-auto">
-            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2 px-4">Collections</p>
-            <div id="collectionsList" class="space-y-1">
-                <!-- Default Collection -->
-                <div onclick="switchCollection('expense')" class="sidebar-item active" data-id="expense">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                    <span>General</span>
-                </div>
+        <nav class="flex-grow space-y-1 overflow-y-auto pr-2">
+            <div onclick="window.location.reload()" class="sidebar-item active">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                <span>Overview</span>
+            </div>
+            
+            <!-- Restored Room & Settings -->
+            <div class="sidebar-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span>Room</span>
+            </div>
+            <div class="sidebar-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span>Settings</span>
             </div>
 
-            <button onclick="openNewCollectionModal()" class="sidebar-item w-full mt-4 text-indigo-400 hover:bg-indigo-900/20">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                <span>New Collection</span>
-            </button>
-
-            <div class="pt-6 mt-6 border-t border-gray-800">
-                <div class="sidebar-item">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    <span>Profile</span>
+            <div class="mt-8 pt-4 border-t border-gray-800">
+                <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-4 px-2">Collections</p>
+                <div id="collectionsList" class="space-y-1">
+                    <!-- Dynamic Collections Load Here -->
+                    <div id="defaultColItem" onclick="window.switchCollection('expense', 'General', 'manual')" class="sidebar-item active" data-id="expense">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        <span>General</span>
+                    </div>
                 </div>
-                <button onclick="window.logoutUser()" class="sidebar-item w-full text-red-400 hover:bg-red-950/30 hover:text-red-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                    <span>Log out</span>
+                <button onclick="openNewCollectionModal()" class="sidebar-item w-full mt-2 text-indigo-400 border border-indigo-400/20 bg-indigo-400/5">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>New List</span>
                 </button>
             </div>
         </nav>
+
+        <div class="pt-6 border-t border-gray-800">
+            <button onclick="window.logoutUser()" class="sidebar-item w-full text-red-400 hover:bg-red-950/30">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <span>Log out</span>
+            </button>
+        </div>
     </aside>
 
     <!-- Main Content -->
     <div class="flex-grow flex flex-col h-screen overflow-hidden">
-        <!-- Top Nav (Mobile Only) -->
         <header class="lg:hidden bg-white border-b border-gray-100 p-4 flex items-center justify-between shrink-0">
-            <button onclick="toggleSidebar()" class="p-2 bg-gray-50 rounded-lg text-gray-600">
+            <button onclick="toggleSidebar(true)" class="p-2 bg-gray-50 rounded-lg text-gray-600">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>
             <h1 class="font-bold text-gray-800">Sharexpense</h1>
-            <div class="w-8 h-8 bg-indigo-100 rounded-full"></div>
+            <div id="userInitialsMobile" class="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold uppercase">?</div>
         </header>
 
         <main class="flex-grow overflow-y-auto p-4 md:p-8">
@@ -105,18 +111,21 @@
                 <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                     <div>
                         <h2 class="text-3xl font-bold text-gray-800" id="welcomeUser">Hello!</h2>
-                        <p class="text-gray-500" id="currentCollectionText">Manage your general expenses.</p>
+                        <p class="text-gray-500" id="currentCollectionText">Default General Expenses</p>
                     </div>
                     <div class="flex items-center gap-4 w-full md:w-auto">
                         <button id="addExpenseBtn" onclick="document.getElementById('modal').classList.remove('hidden')" class="flex-grow md:flex-none bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             Add Expense
                         </button>
+                        <div class="hidden md:flex w-12 h-12 rounded-2xl bg-white shadow-sm border border-gray-100 items-center justify-center overflow-hidden">
+                            <img id="userImg" src="" alt="Profile" class="hidden w-full h-full object-cover">
+                            <span id="userInitials" class="text-indigo-600 font-bold text-lg uppercase">?</span>
+                        </div>
                     </div>
                 </header>
 
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    <!-- Chart -->
                     <div class="lg:col-span-4 glass-card p-8 rounded-[2rem] shadow-sm flex flex-col">
                         <h3 class="font-bold text-gray-800 text-lg mb-6">Spending Analysis</h3>
                         <div class="relative flex-grow min-h-[250px]">
@@ -125,13 +134,12 @@
                         <div id="chartLegend" class="mt-8 space-y-3"></div>
                     </div>
 
-                    <!-- Table -->
                     <div class="lg:col-span-8 glass-card p-8 rounded-[2rem] shadow-sm">
-                        <h3 class="font-bold text-gray-800 text-lg mb-6">Recent Transactions</h3>
+                        <h3 class="font-bold text-gray-800 text-lg mb-6">Transactions</h3>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left">
                                 <thead>
-                                    <tr class="text-gray-400 text-[10px] uppercase tracking-[0.2em] font-bold">
+                                    <tr class="text-gray-400 text-[10px] uppercase tracking-[0.2em] font-bold border-b border-gray-50">
                                         <th class="pb-6">Item</th>
                                         <th class="pb-6">Category</th>
                                         <th class="pb-6">Date</th>
@@ -140,7 +148,7 @@
                                 </thead>
                                 <tbody id="expenseList" class="text-sm"></tbody>
                             </table>
-                            <div id="emptyState" class="hidden py-20 text-center text-gray-400 italic">No transactions found in this collection.</div>
+                            <div id="emptyState" class="hidden py-20 text-center text-gray-400 italic">This collection is currently empty.</div>
                         </div>
                     </div>
                 </div>
@@ -148,7 +156,7 @@
         </main>
     </div>
 
-    <!-- Modal: Add Expense -->
+    <!-- Modals -->
     <div id="modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[11000] flex items-center justify-center p-4">
         <div class="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl">
             <div class="flex justify-between items-center mb-8">
@@ -159,51 +167,48 @@
             </div>
             <form id="expenseForm" class="space-y-6">
                 <div class="space-y-2">
-                    <label class="text-xs font-bold text-gray-400 uppercase">Item Description</label>
-                    <input type="text" id="desc" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="e.g. Dinner out">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Description</label>
+                    <input type="text" id="desc" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-2">
                         <label class="text-xs font-bold text-gray-400 uppercase">Amount (₹)</label>
-                        <input type="number" id="amt" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="0.00">
+                        <input type="number" id="amt" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div class="space-y-2">
                         <label class="text-xs font-bold text-gray-400 uppercase">Category</label>
-                        <select id="cat" class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="Misc">Misc</option>
-                        </select>
+                        <select id="cat" class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none"></select>
                     </div>
                 </div>
                 <div class="space-y-2">
                     <label class="text-xs font-bold text-gray-400 uppercase">Date</label>
                     <input type="date" id="date" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
-                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all">Add Transaction</button>
+                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all">Save Transaction</button>
             </form>
         </div>
     </div>
 
-    <!-- Modal: New Collection -->
     <div id="collectionModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[11000] flex items-center justify-center p-4">
         <div class="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl">
             <div class="flex justify-between items-center mb-8">
-                <h3 class="text-2xl font-bold text-gray-900">New Collection</h3>
+                <h3 class="text-2xl font-bold text-gray-900">New List</h3>
                 <button onclick="document.getElementById('collectionModal').classList.add('hidden')" class="p-2 hover:bg-gray-100 rounded-full">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
             <form id="collectionForm" class="space-y-6">
                 <div class="space-y-2">
-                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Collection Name</label>
-                    <input type="text" id="colName" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="e.g. Vacation, Office">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">List Name</label>
+                    <input type="text" id="colName" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="e.g. Goa Trip">
                 </div>
                 <div class="space-y-2">
-                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Input Method</label>
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Entry Type</label>
                     <div class="grid grid-cols-2 gap-3">
-                        <label class="cursor-pointer border-2 border-transparent p-4 bg-gray-50 rounded-2xl text-center peer-checked:border-indigo-600 has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50 transition-all">
+                        <label class="cursor-pointer border-2 border-transparent p-4 bg-gray-50 rounded-2xl text-center has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50 transition-all">
                             <input type="radio" name="colType" value="manual" checked class="hidden">
                             <span class="block font-bold text-sm">Manual</span>
-                            <span class="text-[10px] text-gray-500">Regular entries</span>
+                            <span class="text-[10px] text-gray-500">Regular App Entry</span>
                         </label>
                         <label class="cursor-pointer border-2 border-transparent p-4 bg-gray-50 rounded-2xl text-center has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50 transition-all">
                             <input type="radio" name="colType" value="auto" class="hidden">
@@ -212,7 +217,7 @@
                         </label>
                     </div>
                 </div>
-                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all">Create Collection</button>
+                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700">Create Sub-collection</button>
             </form>
         </div>
     </div>
@@ -240,7 +245,6 @@
         let chart = null;
         let unsubscribeExpenses = null;
 
-        // --- Auth Guard ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 activeUser = user;
@@ -252,14 +256,20 @@
         });
 
         async function initDashboard(user) {
-            // Profile Sync
             const profileSnap = await getDoc(doc(db, "User", user.uid));
             if (profileSnap.exists()) {
                 const data = profileSnap.data();
                 document.getElementById('welcomeUser').innerText = `Hello, ${data.name.split(' ')[0]}!`;
+                document.getElementById('userInitials').innerText = data.name.charAt(0);
+                document.getElementById('userInitialsMobile').innerText = data.name.charAt(0);
+                if (data.photo) {
+                    document.getElementById('userImg').src = data.photo;
+                    document.getElementById('userImg').classList.remove('hidden');
+                    document.getElementById('userInitials').classList.add('hidden');
+                }
             }
 
-            // Sync Category Select
+            // Category Sync
             onSnapshot(collection(db, "User", user.uid, "Catagory"), (snapshot) => {
                 const catSelect = document.getElementById('cat');
                 catSelect.innerHTML = snapshot.empty ? '<option value="Misc">Misc</option>' : '';
@@ -274,16 +284,13 @@
                 catSelect.appendChild(addOpt);
             });
 
-            // Listen for Collections
+            // Metadata Sync for Sidebar Collections
             onSnapshot(collection(db, "User", user.uid, "CollectionsMetadata"), (snapshot) => {
                 const list = document.getElementById('collectionsList');
-                // Keep default
-                list.innerHTML = `
-                    <div onclick="window.switchCollection('expense')" class="sidebar-item ${activeCollection === 'expense' ? 'active' : ''}" data-id="expense">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                        <span>General</span>
-                    </div>
-                `;
+                const defaultItem = document.getElementById('defaultColItem');
+                list.innerHTML = '';
+                list.appendChild(defaultItem);
+
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     const div = document.createElement('div');
@@ -299,34 +306,28 @@
                 });
             });
 
-            // Initial Expense Sync
             window.switchCollection('expense', 'General', 'manual');
         }
 
-        // --- Core Switching Logic ---
         window.switchCollection = (colId, name = 'General', type = 'manual') => {
             activeCollection = colId;
-            document.getElementById('currentCollectionText').innerText = `Managing: ${name} (${type})`;
+            document.getElementById('currentCollectionText').innerText = `${name} (${type})`;
             
-            // Toggle Add Button Visibility based on Type
             const addBtn = document.getElementById('addExpenseBtn');
             if (type === 'auto') {
-                addBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Import Excel`;
-                addBtn.onclick = () => alert('Excel upload feature coming soon! (Storage API required)');
+                addBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload Sheet`;
+                addBtn.onclick = () => alert('Excel Import logic would go here.');
             } else {
                 addBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Expense`;
                 addBtn.onclick = () => document.getElementById('modal').classList.remove('hidden');
             }
 
-            // Cleanup old listener
             if (unsubscribeExpenses) unsubscribeExpenses();
 
-            // Refresh UI Selection
             document.querySelectorAll('.sidebar-item').forEach(el => {
                 el.classList.toggle('active', el.dataset.id === colId);
             });
 
-            // Start new listener
             const q = query(collection(db, "User", activeUser.uid, colId), orderBy("date", "desc"));
             unsubscribeExpenses = onSnapshot(q, (snapshot) => {
                 const data = [];
@@ -355,8 +356,6 @@
                     </tr>
                 `).join('');
             }
-
-            // Update Chart
             updateChart(expenses);
         }
 
@@ -390,22 +389,17 @@
             `).join('');
         }
 
-        // --- Interaction Handlers ---
-        window.toggleSidebar = (force) => {
+        window.toggleSidebar = (show) => {
             const sb = document.getElementById('sidebar');
             const overlay = document.getElementById('mobileOverlay');
-            const isOpen = typeof force === 'boolean' ? force : !sb.classList.contains('open');
-            
-            sb.classList.toggle('open', isOpen);
-            overlay.classList.toggle('hidden', !isOpen);
+            sb.classList.toggle('open', show);
+            overlay.classList.toggle('hidden', !show);
         };
 
         window.openNewCollectionModal = () => {
             document.getElementById('collectionModal').classList.remove('hidden');
-            if (window.innerWidth < 1024) toggleSidebar(false);
         };
 
-        // Form: Add Expense
         document.getElementById('expenseForm').onsubmit = async (e) => {
             e.preventDefault();
             const selectedCat = document.getElementById('cat').value;
@@ -425,22 +419,29 @@
             document.getElementById('date').valueAsDate = new Date();
         };
 
-        // Form: New Collection
         document.getElementById('collectionForm').onsubmit = async (e) => {
             e.preventDefault();
-            const name = document.getElementById('colName').value;
+            const rawName = document.getElementById('colName').value;
             const type = document.querySelector('input[name="colType"]:checked').value;
-            const id = name.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now();
+            
+            // Sub-collection name matches input field exactly as requested
+            const subColName = rawName.trim();
+            // Metadata ID is slugified for safety
+            const metadataId = subColName.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now();
 
-            await setDoc(doc(db, "User", activeUser.uid, "CollectionsMetadata", id), { name, type });
+            // Store Metadata for Sidebar display
+            await setDoc(doc(db, "User", activeUser.uid, "CollectionsMetadata", metadataId), { 
+                name: subColName, 
+                type: type 
+            });
+
             document.getElementById('collectionModal').classList.add('hidden');
             e.target.reset();
-            window.switchCollection(id, name, type);
+            window.switchCollection(subColName, subColName, type);
         };
 
         window.logoutUser = () => signOut(auth).then(() => window.location.href = 'login.html');
         document.getElementById('date').valueAsDate = new Date();
-
     </script>
 </body>
 </html>
