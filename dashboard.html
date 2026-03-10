@@ -6,7 +6,6 @@
     <title>Dashboard - Sharexpense</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Library for Excel Parsing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         .sidebar-item { @apply flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-all cursor-pointer; }
@@ -75,7 +74,7 @@
                         <span>General</span>
                     </div>
                 </div>
-                <button onclick="openNewCollectionModal()" class="sidebar-item w-full mt-2 text-indigo-400 border border-indigo-400/20 bg-indigo-400/5">
+                <button onclick="document.getElementById('collectionModal').classList.remove('hidden')" class="sidebar-item w-full mt-2 text-indigo-400 border border-indigo-400/20 bg-indigo-400/5">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     <span>New List</span>
                 </button>
@@ -83,7 +82,7 @@
         </nav>
 
         <div class="pt-6 border-t border-gray-800">
-            <button onclick="window.logoutUser()" class="sidebar-item w-full text-red-400 hover:bg-red-950/30">
+            <button id="logoutBtn" class="sidebar-item w-full text-red-400 hover:bg-red-950/30">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 <span>Log out</span>
             </button>
@@ -122,14 +121,17 @@
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div class="lg:col-span-4 glass-card p-8 rounded-[2rem] shadow-sm flex flex-col">
                         <h3 class="font-bold text-gray-800 text-lg mb-6">Spending Analysis</h3>
-                        <div class="relative flex-grow min-h-[250px]">
+                        <div class="relative flex-grow min-h-[250px] flex items-center justify-center">
                             <canvas id="expenseChart"></canvas>
                         </div>
                         <div id="chartLegend" class="mt-8 space-y-3"></div>
                     </div>
 
                     <div class="lg:col-span-8 glass-card p-8 rounded-[2rem] shadow-sm">
-                        <h3 class="font-bold text-gray-800 text-lg mb-6">Transactions</h3>
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-gray-800 text-lg">Transactions</h3>
+                            <span id="totalDisplay" class="text-indigo-600 font-bold text-xl">₹0</span>
+                        </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left">
                                 <thead>
@@ -171,7 +173,7 @@
                     </div>
                     <div class="space-y-2">
                         <label class="text-xs font-bold text-gray-400 uppercase">Category</label>
-                        <select id="cat" onchange="if(this.value==='ADD_NEW') window.location.href='rules.html'" class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none"></select>
+                        <select id="cat" class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none"></select>
                     </div>
                 </div>
                 <div class="space-y-2">
@@ -196,7 +198,7 @@
                 </button>
             </div>
             
-            <div id="dropZone" class="drop-zone rounded-[1.5rem] p-12 text-center cursor-pointer mb-6" onclick="document.getElementById('fileInput').click()">
+            <div id="dropZone" class="drop-zone rounded-[1.5rem] p-12 text-center cursor-pointer mb-6">
                 <div class="bg-indigo-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <svg class="text-indigo-600" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 </div>
@@ -245,7 +247,7 @@
                         </label>
                     </div>
                 </div>
-                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700">Create Sub-collection</button>
+                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700">Create Collection</button>
             </form>
         </div>
     </div>
@@ -270,10 +272,23 @@
 
         let activeUser = null;
         let activeCollection = 'expense';
-        let chart = null;
+        let expenseChart = null;
         let unsubscribeExpenses = null;
         let classificationRules = [];
         let parsedExcelData = null;
+
+        // --- Sidebar Logic ---
+        window.toggleSidebar = (open) => {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            if (open) {
+                sidebar.classList.add('open');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.remove('open');
+                overlay.classList.add('hidden');
+            }
+        };
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -286,6 +301,7 @@
         });
 
         async function initDashboard(user) {
+            // Load Profile
             const profileSnap = await getDoc(doc(db, "User", user.uid));
             if (profileSnap.exists()) {
                 const data = profileSnap.data();
@@ -299,17 +315,16 @@
                 }
             }
 
-            // Sync Rules & Categories for Auto Classification
+            // Sync Categories
             onSnapshot(collection(db, "User", user.uid, "Catagory"), (snapshot) => {
                 const catSelect = document.getElementById('cat');
                 catSelect.innerHTML = '';
                 classificationRules = [];
 
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const categoryName = data.name || doc.id;
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const categoryName = data.name || docSnap.id;
                     
-                    // Store rule for classification
                     classificationRules.push({
                         name: categoryName,
                         keywords: (data.keywords || '').split(',').map(k => k.trim().toLowerCase()).filter(k => k),
@@ -322,33 +337,26 @@
                     catSelect.appendChild(opt);
                 });
                 
-                // Sort rules by priority descending
                 classificationRules.sort((a, b) => b.priority - a.priority);
-
-                const addOpt = document.createElement('option');
-                addOpt.value = "ADD_NEW"; 
-                addOpt.textContent = "+ Manage Categories";
-                addOpt.className = "text-indigo-600 font-bold";
-                catSelect.appendChild(addOpt);
             });
 
-            // Metadata Sync for Sidebar
+            // Metadata Sync
             onSnapshot(collection(db, "User", user.uid, "CollectionsMetadata"), (snapshot) => {
                 const list = document.getElementById('collectionsList');
                 const defaultItem = document.getElementById('defaultColItem');
                 list.innerHTML = '';
                 list.appendChild(defaultItem);
 
-                snapshot.forEach(doc => {
-                    const data = doc.data();
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
                     const div = document.createElement('div');
-                    div.className = `sidebar-item ${activeCollection === doc.id ? 'active' : ''}`;
-                    div.dataset.id = doc.id;
-                    div.onclick = () => window.switchCollection(doc.id, data.name, data.type);
+                    div.className = `sidebar-item ${activeCollection === docSnap.id ? 'active' : ''}`;
+                    div.dataset.id = docSnap.id;
+                    div.onclick = () => window.switchCollection(docSnap.id, data.name, data.type);
                     div.innerHTML = `
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                         <span>${data.name}</span>
-                        ${data.type === 'auto' ? '<span class="ml-auto text-[8px] bg-indigo-500/20 text-indigo-400 px-1 rounded px-1.5 py-0.5">AUTO</span>' : ''}
+                        ${data.type === 'auto' ? '<span class="ml-auto text-[8px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded">AUTO</span>' : ''}
                     `;
                     list.appendChild(div);
                 });
@@ -379,33 +387,103 @@
             const q = query(collection(db, "User", activeUser.uid, colId), orderBy("date", "desc"));
             unsubscribeExpenses = onSnapshot(q, (snapshot) => {
                 const data = [];
-                snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
+                snapshot.forEach(docSnap => data.push({ id: docSnap.id, ...docSnap.data() }));
                 refreshExpensesUI(data);
             }, (err) => console.error("Query Error:", err));
 
             if (window.innerWidth < 1024) toggleSidebar(false);
         };
 
-        // --- Classification Logic ---
+        function refreshExpensesUI(expenses) {
+            const tbody = document.getElementById('expenseList');
+            const empty = document.getElementById('emptyState');
+            const totalDisplay = document.getElementById('totalDisplay');
+            
+            let total = 0;
+            const categoryMap = {};
+
+            if (expenses.length === 0) {
+                tbody.innerHTML = '';
+                empty.classList.remove('hidden');
+            } else {
+                empty.classList.add('hidden');
+                tbody.innerHTML = expenses.map(e => {
+                    total += parseFloat(e.amount);
+                    categoryMap[e.category] = (categoryMap[e.category] || 0) + parseFloat(e.amount);
+                    return `
+                        <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                            <td class="py-5 font-semibold text-gray-800">${e.description}</td>
+                            <td class="py-5"><span class="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wider">${e.category}</span></td>
+                            <td class="py-5 text-gray-400 font-medium">${e.date}</td>
+                            <td class="py-5 text-right font-bold text-gray-900">₹${e.amount}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+            
+            totalDisplay.innerText = `₹${total.toLocaleString()}`;
+            updateChart(categoryMap);
+        }
+
+        function updateChart(data) {
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            const labels = Object.keys(data);
+            const values = Object.values(data);
+            const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#3b82f6'];
+
+            if (expenseChart) expenseChart.destroy();
+
+            if (labels.length === 0) {
+                document.getElementById('chartLegend').innerHTML = '<p class="text-center text-gray-400 text-xs italic">No data to display</p>';
+                return;
+            }
+
+            expenseChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors,
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    cutout: '75%'
+                }
+            });
+
+            const legend = document.getElementById('chartLegend');
+            legend.innerHTML = labels.map((label, i) => `
+                <div class="flex items-center justify-between text-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 rounded-full" style="background: ${colors[i % colors.length]}"></div>
+                        <span class="text-gray-500 font-medium">${label}</span>
+                    </div>
+                    <span class="font-bold text-gray-800">₹${data[label].toLocaleString()}</span>
+                </div>
+            `).join('');
+        }
+
+        // --- Classification & Excel ---
         function classifyExpense(description) {
             const desc = description.toLowerCase();
             for (const rule of classificationRules) {
-                if (rule.keywords.some(k => desc.includes(k))) {
-                    return rule.name;
-                }
+                if (rule.keywords.some(k => desc.includes(k))) return rule.name;
             }
             return "Misc";
         }
 
-        // --- Excel Handling ---
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
         const startUploadBtn = document.getElementById('startUploadBtn');
 
+        dropZone.onclick = () => fileInput.click();
         fileInput.onchange = (e) => handleFile(e.target.files[0]);
-        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
-        dropZone.ondragleave = () => dropZone.classList.remove('dragover');
-        dropZone.ondrop = (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); };
 
         function handleFile(file) {
             if (!file) return;
@@ -416,17 +494,16 @@
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 const rows = XLSX.utils.sheet_to_json(firstSheet);
                 
-                // Minimal validation: Check if mandatory columns exist
                 if (rows.length > 0) {
                     const keys = Object.keys(rows[0]).map(k => k.toLowerCase());
-                    if (keys.includes('description') && keys.includes('amount') && (keys.includes('date') || keys.includes('time'))) {
+                    if (keys.includes('description') && keys.includes('amount')) {
                         parsedExcelData = rows;
                         startUploadBtn.disabled = false;
                         startUploadBtn.className = "w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all";
                         startUploadBtn.innerText = `Process ${rows.length} Transactions`;
-                        dropZone.innerHTML = `<p class="font-bold text-indigo-600">File Loaded: ${file.name}</p><p class="text-xs text-gray-400 mt-1">Found ${rows.length} entries. Click 'Start Batch' below.</p>`;
+                        dropZone.innerHTML = `<p class="font-bold text-indigo-600">File Loaded: ${file.name}</p><p class="text-xs text-gray-400 mt-1">Found ${rows.length} entries.</p>`;
                     } else {
-                        alert("Sheet must contain columns: Description, Amount, and Date");
+                        alert("Sheet must contain 'Description' and 'Amount' columns");
                     }
                 }
             };
@@ -434,14 +511,11 @@
         }
 
         startUploadBtn.onclick = async () => {
-            if (!parsedExcelData || !activeUser) return;
-            
+            if (!parsedExcelData) return;
             startUploadBtn.disabled = true;
             document.getElementById('uploadProgress').classList.remove('hidden');
-            const bar = document.getElementById('progressBar');
-            const txt = document.getElementById('progressText');
             
-            const batchSize = 100; // Firestore batch limit is 500, but 100 is safer for performance
+            const batchSize = 100;
             let count = 0;
             
             for (let i = 0; i < parsedExcelData.length; i += batchSize) {
@@ -449,159 +523,65 @@
                 const chunk = parsedExcelData.slice(i, i + batchSize);
                 
                 chunk.forEach(row => {
-                    // Normalize keys
                     const rowData = {};
                     Object.keys(row).forEach(k => rowData[k.toLowerCase()] = row[k]);
-
+                    
                     const description = rowData.description || "No description";
                     const amount = parseFloat(rowData.amount) || 0;
-                    const dateRaw = rowData.date;
+                    let date = new Date().toISOString().split('T')[0];
                     
-                    // Format date (Excel often stores dates as numbers)
-                    let formattedDate = new Date().toISOString().split('T')[0];
-                    if (dateRaw) {
-                        const d = isNaN(dateRaw) ? new Date(dateRaw) : new Date((dateRaw - 25569) * 86400 * 1000);
-                        if (!isNaN(d)) formattedDate = d.toISOString().split('T')[0];
+                    if (rowData.date) {
+                        const d = isNaN(rowData.date) ? new Date(rowData.date) : new Date((rowData.date - 25569) * 86400 * 1000);
+                        if (!isNaN(d)) date = d.toISOString().split('T')[0];
                     }
 
                     const category = classifyExpense(description);
-                    
                     const docRef = doc(collection(db, "User", activeUser.uid, activeCollection));
-                    batch.set(docRef, {
-                        description,
-                        amount,
-                        category,
-                        date: formattedDate,
-                        createdAt: new Date().toISOString(),
-                        source: 'excel_import'
-                    });
+                    batch.set(docRef, { description, amount, category, date, createdAt: new Date().toISOString() });
                 });
 
                 await batch.commit();
                 count += chunk.length;
                 const percent = Math.round((count / parsedExcelData.length) * 100);
-                bar.style.width = percent + '%';
-                txt.innerText = `Importing: ${count} / ${parsedExcelData.length}`;
+                document.getElementById('progressBar').style.width = percent + '%';
+                document.getElementById('progressText').innerText = `Importing: ${count} / ${parsedExcelData.length}`;
             }
 
-            txt.innerText = "Import Complete!";
             setTimeout(() => {
                 document.getElementById('uploadModal').classList.add('hidden');
                 document.getElementById('uploadProgress').classList.add('hidden');
-                startUploadBtn.disabled = false;
-                parsedExcelData = null;
-                // Reset dropzone
-                dropZone.innerHTML = `
-                    <div class="bg-indigo-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <svg class="text-indigo-600" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    </div>
-                    <p class="font-bold text-gray-800">Click or drag to upload sheet</p>
-                `;
-            }, 1500);
+            }, 1000);
         };
 
-        // --- Standard Dashboard Logic ---
-
-        function refreshExpensesUI(expenses) {
-            const tbody = document.getElementById('expenseList');
-            const empty = document.getElementById('emptyState');
-            
-            if (expenses.length === 0) {
-                tbody.innerHTML = '';
-                empty.classList.remove('hidden');
-            } else {
-                empty.classList.add('hidden');
-                tbody.innerHTML = expenses.map(e => `
-                    <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td class="py-5 font-semibold text-gray-800">${e.description}</td>
-                        <td class="py-5"><span class="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase">${e.category}</span></td>
-                        <td class="py-5 text-gray-400 text-xs">${new Date(e.date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</td>
-                        <td class="py-5 text-right font-bold text-gray-900">₹${parseFloat(e.amount).toLocaleString()}</td>
-                    </tr>
-                `).join('');
-            }
-            updateChart(expenses);
-        }
-
-        function updateChart(expenses) {
-            const totals = {};
-            expenses.forEach(e => totals[e.category] = (totals[e.category] || 0) + parseFloat(e.amount));
-            const labels = Object.keys(totals);
-            const values = Object.values(totals);
-            const palette = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6'];
-
-            if (chart) chart.destroy();
-            const ctx = document.getElementById('expenseChart').getContext('2d');
-            chart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels,
-                    datasets: [{ data: values, backgroundColor: palette, borderWidth: 0, cutout: '75%', hoverOffset: 4 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-            });
-
-            const legend = document.getElementById('chartLegend');
-            legend.innerHTML = labels.map((l, i) => `
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-3">
-                        <div class="w-2.5 h-2.5 rounded-full" style="background:${palette[i % palette.length]}"></div>
-                        <span class="text-sm font-medium text-gray-500">${l}</span>
-                    </div>
-                    <span class="text-sm font-bold text-gray-900">₹${values[i].toLocaleString()}</span>
-                </div>
-            `).join('');
-        }
-
-        window.toggleSidebar = (show) => {
-            const sb = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobileOverlay');
-            sb.classList.toggle('open', show);
-            overlay.classList.toggle('hidden', !show);
-        };
-
-        window.openNewCollectionModal = () => {
-            document.getElementById('collectionModal').classList.remove('hidden');
-        };
-
+        // --- Forms ---
         document.getElementById('expenseForm').onsubmit = async (e) => {
             e.preventDefault();
-            const cat = document.getElementById('cat').value;
-            if (cat === "ADD_NEW") return;
-
             const data = {
                 description: document.getElementById('desc').value,
-                amount: document.getElementById('amt').value,
-                category: cat,
+                amount: parseFloat(document.getElementById('amt').value),
+                category: document.getElementById('cat').value,
                 date: document.getElementById('date').value,
                 createdAt: new Date().toISOString()
             };
-
             await addDoc(collection(db, "User", activeUser.uid, activeCollection), data);
             document.getElementById('modal').classList.add('hidden');
             e.target.reset();
-            document.getElementById('date').valueAsDate = new Date();
         };
 
         document.getElementById('collectionForm').onsubmit = async (e) => {
             e.preventDefault();
-            const rawName = document.getElementById('colName').value.trim();
-            const type = document.querySelector('input[name="colType"]:checked').value;
+            const name = document.getElementById('colName').value;
+            const type = e.target.querySelector('input[name="colType"]:checked').value;
+            const colId = name.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now();
             
-            const metadataId = rawName.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now();
-
-            await setDoc(doc(db, "User", activeUser.uid, "CollectionsMetadata", metadataId), { 
-                name: rawName, 
-                type: type 
-            });
-
+            await setDoc(doc(db, "User", activeUser.uid, "CollectionsMetadata", colId), { name, type, createdAt: new Date().toISOString() });
             document.getElementById('collectionModal').classList.add('hidden');
             e.target.reset();
-            window.switchCollection(metadataId, rawName, type);
+            window.switchCollection(colId, name, type);
         };
 
-        window.logoutUser = () => signOut(auth).then(() => window.location.href = 'login.html');
-        document.getElementById('date').valueAsDate = new Date();
+        document.getElementById('logoutBtn').onclick = () => signOut(auth);
+
     </script>
 </body>
 </html>
