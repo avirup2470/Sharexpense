@@ -31,6 +31,7 @@
         @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         
         .stat-card { @apply bg-gray-50 p-4 rounded-2xl border border-gray-100; }
+        .settlement-card { @apply flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl mb-2; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex overflow-x-hidden">
@@ -83,7 +84,7 @@
 
     <!-- Main -->
     <div class="flex-grow flex flex-col h-screen overflow-hidden">
-        <header class="bg-white border-b border-gray-100 p-6 flex items-center justify-between shrink-0">
+        <header class="bg-white border-b border-gray-100 p-6 flex flex-wrap items-center justify-between shrink-0 gap-4">
             <div class="flex items-center gap-4">
                 <button onclick="toggleSidebar(true)" class="lg:hidden p-2 bg-gray-50 rounded-lg text-gray-600">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -92,6 +93,18 @@
                     <h1 class="text-2xl font-bold text-gray-800">Select Room</h1>
                 </div>
             </div>
+
+            <div id="filterContainer" class="hidden flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
+                <select id="filterMonth" onchange="calculateRoomExpenses()" class="bg-transparent text-sm font-bold text-gray-600 px-3 outline-none">
+                    <option value="0">January</option><option value="1">February</option><option value="2">March</option>
+                    <option value="3">April</option><option value="4">May</option><option value="5">June</option>
+                    <option value="6">July</option><option value="7">August</option><option value="8">September</option>
+                    <option value="9">October</option><option value="10">November</option><option value="11">December</option>
+                </select>
+                <select id="filterYear" onchange="calculateRoomExpenses()" class="bg-transparent text-sm font-bold text-gray-600 px-3 border-l border-gray-200 outline-none">
+                </select>
+            </div>
+
             <div id="roomActions" class="hidden">
                 <button onclick="openCategoryModal()" class="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all">Map My Share</button>
             </div>
@@ -106,14 +119,14 @@
                             <div id="participantsList" class="space-y-4"></div>
                         </div>
                         <div class="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-                            <h3 class="text-lg font-bold text-gray-800 mb-6">Summary</h3>
+                            <h3 class="text-lg font-bold text-gray-800 mb-6">Monthly Summary</h3>
                             <div class="space-y-4">
                                 <div class="stat-card">
-                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Room Spending</p>
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Spent</p>
                                     <p id="totalSpentText" class="text-2xl font-black text-gray-800">$0.00</p>
                                 </div>
                                 <div class="stat-card">
-                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Average per Person</p>
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Target per Person</p>
                                     <p id="avgSpentText" class="text-2xl font-black text-indigo-600">$0.00</p>
                                 </div>
                                 <div class="p-4 bg-gray-50 rounded-2xl text-center border border-gray-100">
@@ -124,19 +137,26 @@
                         </div>
                     </div>
 
-                    <div class="lg:col-span-8">
-                        <div class="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm h-full flex flex-col">
+                    <div class="lg:col-span-8 space-y-8">
+                        <div class="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
                             <div class="flex items-center justify-between mb-8">
-                                <h3 class="text-lg font-bold text-gray-800">Global Contribution Chart</h3>
+                                <h3 class="text-lg font-bold text-gray-800">Contribution Split</h3>
                                 <button onclick="calculateRoomExpenses()" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
                                 </button>
                             </div>
-                            <div class="relative flex-grow flex items-center justify-center min-h-[400px]">
+                            <div class="relative flex items-center justify-center min-h-[300px]">
                                 <canvas id="expensePieChart"></canvas>
                                 <div id="chartLoading" class="absolute inset-0 bg-white/80 flex items-center justify-center z-10 hidden">
                                     <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
+                            <h3 class="text-lg font-bold text-gray-800 mb-6">Settlement Plan</h3>
+                            <div id="settlementPlan" class="space-y-3">
+                                <p class="text-gray-400 text-center py-4">Calculating debt optimization...</p>
                             </div>
                         </div>
                     </div>
@@ -221,6 +241,15 @@
         let chartInstance = null;
         let roomUnsub = null;
 
+        // Populate Year Filter
+        const yearSelect = document.getElementById('filterYear');
+        const currentYear = new Date().getFullYear();
+        for(let i = currentYear; i >= currentYear - 5; i--) {
+            const opt = document.createElement('option');
+            opt.value = i; opt.textContent = i; yearSelect.appendChild(opt);
+        }
+        document.getElementById('filterMonth').value = new Date().getMonth();
+
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 activeUser = user;
@@ -261,6 +290,7 @@
             document.getElementById('noSelectionState').classList.add('hidden');
             document.getElementById('selectedRoomContent').classList.remove('hidden');
             document.getElementById('roomActions').classList.remove('hidden');
+            document.getElementById('filterContainer').classList.remove('hidden');
 
             roomUnsub = onSnapshot(doc(db, "Rooms", id), (snap) => {
                 if (!snap.exists()) return;
@@ -290,8 +320,11 @@
             if (!currentRoomData?.participantsData) return;
             document.getElementById('chartLoading').classList.remove('hidden');
 
+            const month = parseInt(document.getElementById('filterMonth').value);
+            const year = parseInt(document.getElementById('filterYear').value);
+
             const roomEntries = Object.entries(currentRoomData.participantsData);
-            const chartData = [];
+            const userBalances = [];
             let grandTotal = 0;
 
             for (const [uid, info] of roomEntries) {
@@ -304,23 +337,94 @@
                         const q = query(collection(db, "User", uid, col), where("category", "==", cat));
                         const snap = await getDocs(q);
                         snap.forEach(d => {
-                            const val = parseFloat(d.data().amount);
-                            if (!isNaN(val)) sum += val;
+                            const expenseDate = d.data().date ? new Date(d.data().date) : new Date();
+                            if(expenseDate.getMonth() === month && expenseDate.getFullYear() === year) {
+                                const val = parseFloat(d.data().amount);
+                                if (!isNaN(val)) sum += val;
+                            }
                         });
-                    } catch (e) {
-                        console.log(`Fetch issue for ${info.name}:`, e.message);
-                    }
+                    } catch (e) { console.log(`Fetch issue for ${info.name}:`, e.message); }
                 }
                 
-                const displayName = uid === activeUser.uid ? `${info.name} (You)` : info.name;
-                chartData.push({ label: displayName, value: sum });
+                userBalances.push({ uid, name: info.name, paid: sum });
                 grandTotal += sum;
             }
 
-            updateChart(chartData);
+            const avg = grandTotal / (roomEntries.length || 1);
+            userBalances.forEach(b => b.diff = b.paid - avg);
+
+            renderSettlement(userBalances);
+            updateChart(userBalances.map(u => ({ label: u.name, value: u.paid })));
+
             document.getElementById('totalSpentText').innerText = `$${grandTotal.toFixed(2)}`;
-            document.getElementById('avgSpentText').innerText = `$${(grandTotal / roomEntries.length || 0).toFixed(2)}`;
+            document.getElementById('avgSpentText').innerText = `$${avg.toFixed(2)}`;
             document.getElementById('chartLoading').classList.add('hidden');
+        }
+
+        /**
+         * N-Person Settlement Logic
+         * Generalizes the Excel logic to handle any number of participants.
+         */
+        function renderSettlement(balances) {
+            const container = document.getElementById('settlementPlan');
+            container.innerHTML = '';
+
+            // Separate people into debtors and creditors
+            let creditors = balances.filter(b => b.diff > 0.01).sort((a, b) => b.diff - a.diff);
+            let debtors = balances.filter(b => b.diff < -0.01).sort((a, b) => a.diff - b.diff);
+
+            if (debtors.length === 0 && creditors.length === 0) {
+                container.innerHTML = '<p class="text-gray-400 text-center py-4 italic">Everyone is equal! No payments needed.</p>';
+                return;
+            }
+
+            // Greedy matching algorithm
+            let transactions = [];
+            let dIdx = 0, cIdx = 0;
+
+            while (dIdx < debtors.length && cIdx < creditors.length) {
+                let debtor = debtors[dIdx];
+                let creditor = creditors[cIdx];
+                
+                let amountToPay = Math.min(Math.abs(debtor.diff), creditor.diff);
+                
+                transactions.push({
+                    from: debtor.name,
+                    fromUid: debtor.uid,
+                    to: creditor.name,
+                    toUid: creditor.uid,
+                    amount: amountToPay
+                });
+
+                debtor.diff += amountToPay;
+                creditor.diff -= amountToPay;
+
+                if (Math.abs(debtor.diff) < 0.01) dIdx++;
+                if (Math.abs(creditor.diff) < 0.01) cIdx++;
+            }
+
+            transactions.forEach(t => {
+                const div = document.createElement('div');
+                const isUserInvolved = t.fromUid === activeUser.uid || t.toUid === activeUser.uid;
+                
+                div.className = `settlement-card ${isUserInvolved ? 'border-indigo-200 bg-indigo-50/30' : ''}`;
+                div.innerHTML = `
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-tighter">Transfer</span>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-gray-800">${t.from}</span>
+                            <svg class="text-gray-400" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                            <span class="font-bold text-gray-800">${t.to}</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-sm font-black text-indigo-600">$${t.amount.toFixed(2)}</span>
+                        ${t.fromUid === activeUser.uid ? '<p class="text-[10px] font-bold text-red-500 uppercase">You Pay</p>' : ''}
+                        ${t.toUid === activeUser.uid ? '<p class="text-[10px] font-bold text-green-500 uppercase">You Receive</p>' : ''}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
         }
 
         function updateChart(chartData) {
@@ -346,7 +450,7 @@
                     maintainAspectRatio: false,
                     cutout: '75%',
                     plugins: {
-                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 30, font: { weight: 'bold' } } },
+                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20, font: { weight: 'bold', size: 10 } } },
                         tooltip: { callbacks: { label: (ctx) => ` $${ctx.raw.toFixed(2)}` } }
                     }
                 }
