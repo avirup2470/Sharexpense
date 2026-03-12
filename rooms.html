@@ -398,12 +398,19 @@
             if (!selectedRoomId || !activeUser) return;
 
             try {
+                // 1. Update personal mapping for the specific room
                 const expenseRef = doc(db, "User", activeUser.uid, "rooms", selectedRoomId, "roomExpense", colId);
-                
                 await setDoc(expenseRef, {
                     ExpenseCollection: colId,
                     ExpenseCategory: catName,
                     updatedAt: serverTimestamp()
+                });
+
+                // 2. Update Global Room Record (ParticipantsData)
+                const globalRoomRef = doc(db, "Rooms", selectedRoomId);
+                await updateDoc(globalRoomRef, {
+                    [`participantsData.${activeUser.uid}.ExpenseCollection`]: colId,
+                    [`participantsData.${activeUser.uid}.ExpenseCategory`]: catName
                 });
 
                 showToast("Category mapped successfully!");
