@@ -40,6 +40,10 @@
             animation: slideUp 0.3s ease-out;
         }
         @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex overflow-x-hidden">
@@ -324,13 +328,17 @@
                 const participantsList = document.getElementById('participantsList');
                 participantsList.innerHTML = '';
                 Object.entries(currentRoomData.participantsData || {}).forEach(([uid, info]) => {
+                    const avatarContent = info.photoURL || info.image ? 
+                        `<img src="${info.photoURL || info.image}" class="w-10 h-10 rounded-full object-cover border border-gray-100">` : 
+                        `<div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center border border-indigo-100 font-bold text-indigo-600">
+                            ${info.name?.charAt(0).toUpperCase() || 'U'}
+                        </div>`;
+
                     const row = document.createElement('div');
-                    row.className = "flex items-center justify-between p-4 bg-gray-50 rounded-2xl";
+                    row.className = "flex items-center justify-between p-4 bg-gray-50 rounded-2xl transition-all hover:bg-gray-100";
                     row.innerHTML = `
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-gray-100 font-bold text-indigo-600">
-                                ${info.name?.charAt(0) || 'U'}
-                            </div>
+                            ${avatarContent}
                             <div>
                                 <p class="text-sm font-bold text-gray-800">${info.name} ${uid === activeUser.uid ? '(You)' : ''}</p>
                                 <p class="text-[10px] text-gray-400 uppercase font-bold tracking-tight">Joined ${new Date(info.joinedAt).toLocaleDateString()}</p>
@@ -347,9 +355,14 @@
             const colSelect = document.getElementById('collectionSelect');
             const catSelect = document.getElementById('categorySelect');
 
-            // Collections
-            const colSnap = await getDocs(collection(db, "User", activeUser.uid, "CollectionsMetadata"));
+            // Collections: Prepend default "expense" then load metadata
             colSelect.innerHTML = '<option value="">Select Collection</option>';
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = 'expense';
+            defaultOpt.textContent = 'General Expenses (Default)';
+            colSelect.appendChild(defaultOpt);
+
+            const colSnap = await getDocs(collection(db, "User", activeUser.uid, "CollectionsMetadata"));
             colSnap.forEach(doc => {
                 const option = document.createElement('option');
                 option.value = doc.id;
@@ -385,8 +398,6 @@
             if (!selectedRoomId || !activeUser) return;
 
             try {
-                // According to request: add these paths under global room's individual participants
-                // Specifically updating the roomExpense subcollection for the active user within this specific room
                 const expenseRef = doc(db, "User", activeUser.uid, "rooms", selectedRoomId, "roomExpense", colId);
                 
                 await setDoc(expenseRef, {
@@ -403,7 +414,7 @@
             }
         };
 
-        // Room Creation & Join Logic (Preserved from previous version)
+        // Room Creation & Join Logic
         document.getElementById('createRoomForm').onsubmit = async (e) => {
             e.preventDefault();
             const name = document.getElementById('newRoomName').value;
@@ -411,10 +422,18 @@
             try {
                 const globalRoomRef = doc(collection(db, "Rooms"));
                 const roomId = globalRoomRef.id;
+                
+                const participantInfo = { 
+                    name: userData.name, 
+                    joinedAt: new Date().toISOString()
+                };
+                if (userData.photoURL) participantInfo.photoURL = userData.photoURL;
+                if (userData.image) participantInfo.image = userData.image;
+
                 await setDoc(globalRoomRef, {
                     roomId, name, code, createdBy: activeUser.uid, createdAt: serverTimestamp(),
                     participants: [activeUser.uid],
-                    participantsData: { [activeUser.uid]: { name: userData.name, joinedAt: new Date().toISOString() } }
+                    participantsData: { [activeUser.uid]: participantInfo }
                 });
                 await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId), {
                     roomId, name, code, role: 'admin', joinedAt: serverTimestamp()
@@ -436,9 +455,16 @@
                 const roomId = roomDoc.id;
                 const roomData = roomDoc.data();
                 
+                const participantInfo = { 
+                    name: userData.name, 
+                    joinedAt: new Date().toISOString()
+                };
+                if (userData.photoURL) participantInfo.photoURL = userData.photoURL;
+                if (userData.image) participantInfo.image = userData.image;
+
                 await updateDoc(doc(db, "Rooms", roomId), {
                     participants: arrayUnion(activeUser.uid),
-                    [`participantsData.${activeUser.uid}`]: { name: userData.name, joinedAt: new Date().toISOString() }
+                    [`participantsData.${activeUser.uid}`]: participantInfo
                 });
                 await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId), {
                     roomId, name: roomData.name, code: roomData.code, role: 'member', joinedAt: serverTimestamp()
