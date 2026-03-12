@@ -13,13 +13,8 @@
         .room-nav-item.active { @apply text-white bg-gray-800 border-l-4 border-indigo-500 rounded-l-none; }
         
         #authOverlay {
-            position: fixed;
-            inset: 0;
-            background: white;
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: fixed; inset: 0; background: white; z-index: 10000;
+            display: flex; align-items: center; justify-content: center;
         }
 
         #sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -29,23 +24,12 @@
         }
 
         .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 12px 24px;
-            border-radius: 12px;
-            color: white;
-            font-weight: bold;
-            z-index: 12000;
-            display: none;
-            animation: slideUp 0.3s ease-out;
+            position: fixed; bottom: 20px; right: 20px; padding: 12px 24px;
+            border-radius: 12px; color: white; font-weight: bold; z-index: 12000;
+            display: none; animation: slideUp 0.3s ease-out;
         }
         @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
-
         .stat-card { @apply bg-gray-50 p-4 rounded-2xl border border-gray-100; }
     </style>
 </head>
@@ -56,7 +40,7 @@
     <div id="authOverlay">
         <div class="text-center">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-            <p class="mt-4 text-gray-500 font-medium">Loading rooms...</p>
+            <p class="mt-4 text-gray-500 font-medium">Synchronizing expenses...</p>
         </div>
     </div>
 
@@ -84,13 +68,10 @@
         </nav>
 
         <div class="mb-4 px-4 flex items-center justify-between">
-            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Your Rooms</span>
-            <div class="flex gap-2">
-                <button onclick="openJoinModal()" class="text-indigo-400 hover:text-white" title="Join Room">+</button>
-            </div>
+            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Rooms</span>
+            <button onclick="openJoinModal()" class="text-indigo-400 hover:text-white" title="Join Room">+</button>
         </div>
-        
-        <div id="sidebarRoomList" class="flex-grow space-y-1 overflow-y-auto pr-2 custom-scrollbar"></div>
+        <div id="sidebarRoomList" class="flex-grow space-y-1 overflow-y-auto pr-2"></div>
 
         <div class="pt-6 border-t border-gray-800">
             <button onclick="window.logoutUser()" class="sidebar-item w-full text-red-400 hover:bg-red-950/30">
@@ -100,7 +81,7 @@
         </div>
     </aside>
 
-    <!-- Main Content -->
+    <!-- Main -->
     <div class="flex-grow flex flex-col h-screen overflow-hidden">
         <header class="bg-white border-b border-gray-100 p-6 flex items-center justify-between shrink-0">
             <div class="flex items-center gap-4">
@@ -108,83 +89,66 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
                 <div id="roomHeader">
-                    <h1 class="text-2xl font-bold text-gray-800">Select a Room</h1>
-                    <p class="text-sm text-gray-400">Choose a room from the sidebar</p>
+                    <h1 class="text-2xl font-bold text-gray-800">Select Room</h1>
                 </div>
             </div>
-            
-            <div id="roomActions" class="hidden flex items-center gap-3">
-                <button onclick="openCategoryModal()" class="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-6M9 20v-10M15 20v-14M3 20h18"/></svg>
-                    Map Category
-                </button>
+            <div id="roomActions" class="hidden">
+                <button onclick="openCategoryModal()" class="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all">Map My Share</button>
             </div>
         </header>
 
         <main class="flex-grow overflow-y-auto p-6 md:p-10">
             <div id="selectedRoomContent" class="hidden max-w-6xl mx-auto">
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    
-                    <!-- Left Column: Summary & Participants -->
                     <div class="lg:col-span-4 space-y-6">
-                        <div class="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                            <h3 class="text-xl font-bold text-gray-800 mb-6">Participants</h3>
+                        <div class="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
+                            <h3 class="text-lg font-bold text-gray-800 mb-6">Participants</h3>
                             <div id="participantsList" class="space-y-4"></div>
                         </div>
-
-                        <div class="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                            <h3 class="text-xl font-bold text-gray-800 mb-6">Room Stats</h3>
+                        <div class="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
+                            <h3 class="text-lg font-bold text-gray-800 mb-6">Summary</h3>
                             <div class="space-y-4">
                                 <div class="stat-card">
-                                    <p class="text-xs font-bold text-gray-400 uppercase mb-1">Total Spent</p>
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Room Spending</p>
                                     <p id="totalSpentText" class="text-2xl font-black text-gray-800">$0.00</p>
                                 </div>
                                 <div class="stat-card">
-                                    <p class="text-xs font-bold text-gray-400 uppercase mb-1">Average per Person</p>
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Average per Person</p>
                                     <p id="avgSpentText" class="text-2xl font-black text-indigo-600">$0.00</p>
                                 </div>
-                                <div id="roomCodeDisplay" class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 text-center">
-                                    <p class="text-[10px] font-bold text-indigo-400 uppercase mb-1">Room Code</p>
-                                    <p id="roomCodeText" class="text-lg font-mono font-bold tracking-widest text-indigo-700">------</p>
+                                <div class="p-4 bg-gray-50 rounded-2xl text-center border border-gray-100">
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Room Code</p>
+                                    <p id="roomCodeText" class="text-lg font-mono font-bold text-gray-800">------</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Right Column: Chart -->
                     <div class="lg:col-span-8">
-                        <div class="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm h-full">
+                        <div class="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm h-full flex flex-col">
                             <div class="flex items-center justify-between mb-8">
-                                <h3 class="text-xl font-bold text-gray-800">Expense Distribution</h3>
-                                <button onclick="calculateRoomExpenses()" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Refresh Data">
+                                <h3 class="text-lg font-bold text-gray-800">Global Contribution Chart</h3>
+                                <button onclick="calculateRoomExpenses()" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
                                 </button>
                             </div>
-                            
-                            <div id="chartContainer" class="relative w-full aspect-square md:aspect-video flex items-center justify-center">
+                            <div class="relative flex-grow flex items-center justify-center min-h-[400px]">
                                 <canvas id="expensePieChart"></canvas>
                                 <div id="chartLoading" class="absolute inset-0 bg-white/80 flex items-center justify-center z-10 hidden">
-                                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                                </div>
-                                <div id="noDataPlaceholder" class="hidden flex flex-col items-center">
-                                    <p class="text-gray-400 italic">No expense data found for mapped categories</p>
+                                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
 
             <div id="noSelectionState" class="flex flex-col items-center justify-center py-20 text-center">
-                <div class="bg-indigo-50 p-8 rounded-full mb-6 text-indigo-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                </div>
-                <h3 class="text-xl font-bold text-gray-800 mb-2">Room Central</h3>
-                <p class="text-gray-500 max-w-xs mx-auto">Select or join a room to start tracking shared expenses.</p>
-                <div class="mt-8 flex gap-3">
-                    <button onclick="openCreateModal()" class="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700">Create Room</button>
-                    <button onclick="openJoinModal()" class="px-6 py-2 bg-white text-indigo-600 border border-indigo-100 rounded-xl font-bold hover:bg-indigo-50">Join Room</button>
+                <h3 class="text-xl font-bold text-gray-800">No Room Selected</h3>
+                <p class="text-gray-500 mb-6">Join or create a room to view collective expenses.</p>
+                <div class="flex gap-4">
+                    <button onclick="openCreateModal()" class="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold">Create</button>
+                    <button onclick="openJoinModal()" class="px-6 py-2 border border-gray-200 rounded-xl font-bold">Join</button>
                 </div>
             </div>
         </main>
@@ -192,44 +156,41 @@
 
     <!-- Modals -->
     <div id="createModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[11000] flex items-center justify-center p-4">
-        <div class="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl">
-            <h3 class="text-2xl font-bold text-gray-900 mb-6">Create New Room</h3>
-            <form id="createRoomForm" class="space-y-6">
-                <input type="text" id="newRoomName" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Room Name">
-                <div class="flex gap-3">
-                    <button type="button" onclick="closeModals()" class="flex-1 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold">Cancel</button>
-                    <button type="submit" class="flex-2 py-4 px-8 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl">Create</button>
+        <div class="bg-white rounded-[2rem] w-full max-w-md p-10">
+            <h3 class="text-2xl font-bold mb-6">Create Room</h3>
+            <form id="createRoomForm" class="space-y-4">
+                <input type="text" id="newRoomName" required class="w-full p-4 rounded-xl bg-gray-50 border-none" placeholder="Name">
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeModals()" class="flex-1 p-4 bg-gray-100 rounded-xl">Cancel</button>
+                    <button type="submit" class="flex-2 p-4 bg-indigo-600 text-white rounded-xl font-bold">Create</button>
                 </div>
             </form>
         </div>
     </div>
 
     <div id="joinModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[11000] flex items-center justify-center p-4">
-        <div class="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl">
-            <h3 class="text-2xl font-bold text-gray-900 mb-6">Join a Room</h3>
-            <form id="joinRoomForm" class="space-y-6">
-                <input type="text" id="roomCodeInput" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="6-digit code">
-                <div class="flex gap-3">
-                    <button type="button" onclick="closeModals()" class="flex-1 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold">Cancel</button>
-                    <button type="submit" class="flex-2 py-4 px-8 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl">Join</button>
+        <div class="bg-white rounded-[2rem] w-full max-w-md p-10">
+            <h3 class="text-2xl font-bold mb-6">Join Room</h3>
+            <form id="joinRoomForm" class="space-y-4">
+                <input type="text" id="roomCodeInput" required class="w-full p-4 rounded-xl bg-gray-50 border-none" placeholder="Code">
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeModals()" class="flex-1 p-4 bg-gray-100 rounded-xl">Cancel</button>
+                    <button type="submit" class="flex-2 p-4 bg-indigo-600 text-white rounded-xl font-bold">Join</button>
                 </div>
             </form>
         </div>
     </div>
 
     <div id="categoryModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[11000] flex items-center justify-center p-4">
-        <div class="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl">
-            <h3 class="text-2xl font-bold text-gray-900 mb-6">Map Room Expense</h3>
-            <form id="categoryForm" class="space-y-6">
-                <select id="collectionSelect" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <option value="">Select Collection</option>
-                </select>
-                <select id="categorySelect" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <option value="">Select Category</option>
-                </select>
-                <div class="flex gap-3">
-                    <button type="button" onclick="closeModals()" class="flex-1 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold">Cancel</button>
-                    <button type="submit" class="flex-2 py-4 px-8 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl">Confirm</button>
+        <div class="bg-white rounded-[2rem] w-full max-w-md p-10">
+            <h3 class="text-xl font-bold mb-2">Sync Your Expenses</h3>
+            <p class="text-sm text-gray-500 mb-6">Tell the room which collection and category from your dashboard counts as a room expense.</p>
+            <form id="categoryForm" class="space-y-4">
+                <select id="collectionSelect" required class="w-full p-4 rounded-xl bg-gray-50 border-none"></select>
+                <select id="categorySelect" required class="w-full p-4 rounded-xl bg-gray-50 border-none"></select>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeModals()" class="flex-1 p-4 bg-gray-100 rounded-xl">Cancel</button>
+                    <button type="submit" class="flex-2 p-4 bg-indigo-600 text-white rounded-xl font-bold">Map My Data</button>
                 </div>
             </form>
         </div>
@@ -258,13 +219,13 @@
         let selectedRoomId = null;
         let currentRoomData = null;
         let chartInstance = null;
-        let roomUnsubscribe = null;
+        let roomUnsub = null;
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 activeUser = user;
-                const userSnap = await getDoc(doc(db, "User", user.uid));
-                userData = userSnap.exists() ? userSnap.data() : { name: "User", email: user.email };
+                const snap = await getDoc(doc(db, "User", user.uid));
+                userData = snap.exists() ? snap.data() : { name: "User" };
                 initSidebarRooms(user);
                 loadMetadata();
                 document.getElementById('authOverlay').style.display = 'none';
@@ -273,130 +234,100 @@
             }
         });
 
-        function showToast(msg, isError = false) {
-            const toast = document.getElementById('toast');
-            toast.innerText = msg;
-            toast.style.background = isError ? '#ef4444' : '#10b981';
-            toast.style.display = 'block';
-            setTimeout(() => { toast.style.display = 'none'; }, 3000);
+        function showToast(msg, isErr = false) {
+            const t = document.getElementById('toast');
+            t.innerText = msg; t.style.background = isErr ? '#ef4444' : '#10b981';
+            t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 3000);
         }
 
         function initSidebarRooms(user) {
-            onSnapshot(collection(db, "User", user.uid, "rooms"), (snapshot) => {
-                const sidebarList = document.getElementById('sidebarRoomList');
-                sidebarList.innerHTML = '';
-                snapshot.forEach(docSnap => {
-                    const data = docSnap.data();
-                    const roomId = data.roomId || docSnap.id;
+            onSnapshot(collection(db, "User", user.uid, "rooms"), (snap) => {
+                const list = document.getElementById('sidebarRoomList');
+                list.innerHTML = '';
+                snap.forEach(d => {
+                    const data = d.data();
                     const item = document.createElement('div');
-                    item.className = `room-nav-item ${selectedRoomId === roomId ? 'active' : ''}`;
-                    item.onclick = () => selectRoom(roomId);
-                    item.innerHTML = `<div class="w-2 h-2 rounded-full ${selectedRoomId === roomId ? 'bg-indigo-500' : 'bg-gray-700'}"></div><span class="truncate font-medium">${data.name || 'Room'}</span>`;
-                    sidebarList.appendChild(item);
+                    item.className = `room-nav-item ${selectedRoomId === data.roomId ? 'active' : ''}`;
+                    item.onclick = () => selectRoom(data.roomId);
+                    item.innerHTML = `<span class="truncate">${data.name}</span>`;
+                    list.appendChild(item);
                 });
             });
         }
 
-        async function selectRoom(roomId) {
-            if (roomUnsubscribe) roomUnsubscribe(); // Unsubscribe from old room listener
-            
-            selectedRoomId = roomId;
+        async function selectRoom(id) {
+            if (roomUnsub) roomUnsub();
+            selectedRoomId = id;
             document.getElementById('noSelectionState').classList.add('hidden');
             document.getElementById('selectedRoomContent').classList.remove('hidden');
             document.getElementById('roomActions').classList.remove('hidden');
 
-            roomUnsubscribe = onSnapshot(doc(db, "Rooms", roomId), (snap) => {
+            roomUnsub = onSnapshot(doc(db, "Rooms", id), (snap) => {
                 if (!snap.exists()) return;
                 currentRoomData = snap.data();
-                document.getElementById('roomHeader').innerHTML = `<h1 class="text-2xl font-bold text-gray-800">${currentRoomData.name}</h1><p class="text-sm text-gray-400">Total Participants: ${currentRoomData.participants?.length || 0}</p>`;
+                document.getElementById('roomHeader').innerHTML = `<h1 class="text-2xl font-bold text-gray-800">${currentRoomData.name}</h1>`;
                 document.getElementById('roomCodeText').innerText = currentRoomData.code;
 
                 const list = document.getElementById('participantsList');
                 list.innerHTML = '';
                 Object.entries(currentRoomData.participantsData || {}).forEach(([uid, info]) => {
-                    const mapped = info.ExpenseCategory ? `<span class="text-[9px] bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-bold uppercase ml-2">${info.ExpenseCategory}</span>` : '';
-                    const row = document.createElement('div');
-                    row.className = "flex items-center gap-3 p-3 bg-gray-50 rounded-2xl";
-                    row.innerHTML = `
-                        <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center font-bold text-indigo-600 border border-indigo-100">
-                            ${info.name?.charAt(0).toUpperCase()}
-                        </div>
+                    const div = document.createElement('div');
+                    div.className = "flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100";
+                    div.innerHTML = `
+                        <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">${info.name.charAt(0)}</div>
                         <div class="flex-grow">
-                            <div class="flex items-center"><p class="text-sm font-bold text-gray-800">${info.name}</p>${mapped}</div>
-                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-tight">${uid === activeUser.uid ? 'You' : 'Participant'}</p>
+                            <p class="text-sm font-bold">${info.name} ${uid === activeUser.uid ? '(You)' : ''}</p>
+                            <p class="text-[10px] text-gray-400 font-bold uppercase">${info.ExpenseCategory || 'Not Mapped'}</p>
                         </div>
                     `;
-                    list.appendChild(row);
+                    list.appendChild(div);
                 });
-                
-                // Initial calculation
                 calculateRoomExpenses();
-            });
-
-            // Update sidebar active state manually for responsiveness
-            document.querySelectorAll('.room-nav-item').forEach(el => {
-                el.classList.toggle('active', el.textContent.includes(currentRoomData?.name || ''));
             });
         }
 
         async function calculateRoomExpenses() {
-            if (!currentRoomData || !currentRoomData.participantsData) return;
-            
+            if (!currentRoomData?.participantsData) return;
             document.getElementById('chartLoading').classList.remove('hidden');
+
             const totals = {};
             let grandTotal = 0;
-            const participants = Object.entries(currentRoomData.participantsData);
+            const entries = Object.entries(currentRoomData.participantsData);
 
-            // Using for...of for sequential async calls to avoid rate limits and ensure accuracy
-            for (const [uid, info] of participants) {
-                const colId = info.ExpenseCollection;
-                const catName = info.ExpenseCategory;
-                let userSum = 0;
+            // Sequential fetch ensures we handle individual user permissions gracefully
+            for (const [uid, info] of entries) {
+                const col = info.ExpenseCollection;
+                const cat = info.ExpenseCategory;
+                let sum = 0;
 
-                if (colId && catName) {
+                if (col && cat) {
                     try {
-                        const expenseQuery = query(
-                            collection(db, "User", uid, colId),
-                            where("category", "==", catName)
-                        );
-                        const snap = await getDocs(expenseQuery);
-                        snap.forEach(doc => {
-                            const amt = parseFloat(doc.data().amount) || 0;
-                            userSum += amt;
-                        });
-                    } catch (e) { 
-                        console.error(`Failed to fetch expenses for ${uid}:`, e); 
+                        // NOTE: If permission errors occur here, it's because Firebase rules block reading other users' private subcollections.
+                        // Ideally, users should "push" their totals to the room document instead of the room "pulling" them.
+                        const q = query(collection(db, "User", uid, col), where("category", "==", cat));
+                        const snap = await getDocs(q);
+                        snap.forEach(d => sum += (parseFloat(d.data().amount) || 0));
+                    } catch (e) {
+                        console.warn(`Could not fetch data for ${info.name}. If this isn't you, ensure your security rules allow room participants to read mapped collections.`);
                     }
                 }
-                
-                // Always set a value (even 0) for every participant to ensure they appear in logic/legend
-                totals[info.name] = userSum;
-                grandTotal += userSum;
+                totals[info.name] = sum;
+                grandTotal += sum;
             }
 
             updateChart(totals);
             document.getElementById('totalSpentText').innerText = `$${grandTotal.toFixed(2)}`;
-            const avg = participants.length > 0 ? grandTotal / participants.length : 0;
-            document.getElementById('avgSpentText').innerText = `$${avg.toFixed(2)}`;
+            document.getElementById('avgSpentText').innerText = `$${(grandTotal / entries.length || 0).toFixed(2)}`;
             document.getElementById('chartLoading').classList.add('hidden');
-            showToast("Data refreshed");
         }
 
         function updateChart(dataMap) {
             const ctx = document.getElementById('expensePieChart').getContext('2d');
             const labels = Object.keys(dataMap);
             const values = Object.values(dataMap);
-            
-            // Check if there's any non-zero data
             const hasData = values.some(v => v > 0);
 
-            document.getElementById('noDataPlaceholder').classList.toggle('hidden', hasData);
-            document.getElementById('expensePieChart').style.opacity = hasData ? '1' : '0.1';
-
             if (chartInstance) chartInstance.destroy();
-
-            // Colors for the chart
-            const palette = ['#6366f1', '#a855f7', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6'];
 
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
@@ -404,77 +335,54 @@
                     labels: labels,
                     datasets: [{
                         data: values,
-                        backgroundColor: labels.map((_, i) => palette[i % palette.length]),
+                        backgroundColor: ['#6366f1', '#a855f7', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6'],
                         borderWidth: 0,
-                        hoverOffset: 20
+                        hoverOffset: 15
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '70%',
+                    cutout: '75%',
                     plugins: {
-                        legend: { 
-                            position: 'bottom', 
-                            labels: { 
-                                usePointStyle: true, 
-                                padding: 25, 
-                                font: { weight: 'bold', size: 11 },
-                                color: '#64748b'
-                            } 
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: (ctx) => ` ${ctx.label}: $${ctx.raw.toFixed(2)}`
-                            },
-                            padding: 12,
-                            backgroundColor: '#1e293b'
-                        }
+                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 30, font: { weight: 'bold' } } },
+                        tooltip: { callbacks: { label: (ctx) => ` $${ctx.raw.toFixed(2)}` } }
                     }
                 }
             });
         }
 
         async function loadMetadata() {
-            const colSelect = document.getElementById('collectionSelect');
-            const catSelect = document.getElementById('categorySelect');
-            
-            // Set default options
-            colSelect.innerHTML = '<option value="">Select Collection</option><option value="expense">General Expenses</option>';
-            catSelect.innerHTML = '<option value="">Select Category</option>';
+            const colSel = document.getElementById('collectionSelect');
+            const catSel = document.getElementById('categorySelect');
+            colSel.innerHTML = '<option value="">Choose Collection</option><option value="expense">Default Expenses</option>';
+            catSel.innerHTML = '<option value="">Choose Category</option>';
 
-            try {
-                const colSnap = await getDocs(collection(db, "User", activeUser.uid, "CollectionsMetadata"));
-                colSnap.forEach(doc => {
-                    const opt = document.createElement('option');
-                    opt.value = doc.id; opt.textContent = doc.data().name;
-                    colSelect.appendChild(opt);
-                });
+            const colSnap = await getDocs(collection(db, "User", activeUser.uid, "CollectionsMetadata"));
+            colSnap.forEach(d => {
+                const o = document.createElement('option');
+                o.value = d.id; o.textContent = d.data().name; colSel.appendChild(o);
+            });
 
-                const catSnap = await getDocs(collection(db, "User", activeUser.uid, "Catagory"));
-                catSnap.forEach(doc => {
-                    const opt = document.createElement('option');
-                    opt.value = doc.data().name; opt.textContent = doc.data().name;
-                    catSelect.appendChild(opt);
-                });
-            } catch (err) { console.error("Error loading metadata", err); }
+            const catSnap = await getDocs(collection(db, "User", activeUser.uid, "Catagory"));
+            catSnap.forEach(d => {
+                const o = document.createElement('option');
+                o.value = d.data().name; o.textContent = d.data().name; catSel.appendChild(o);
+            });
         }
 
         document.getElementById('categoryForm').onsubmit = async (e) => {
             e.preventDefault();
-            const colId = document.getElementById('collectionSelect').value;
-            const catName = document.getElementById('categorySelect').value;
-            
+            const col = document.getElementById('collectionSelect').value;
+            const cat = document.getElementById('categorySelect').value;
             try {
-                const globalRoomRef = doc(db, "Rooms", selectedRoomId);
-                await updateDoc(globalRoomRef, {
-                    [`participantsData.${activeUser.uid}.ExpenseCollection`]: colId,
-                    [`participantsData.${activeUser.uid}.ExpenseCategory`]: catName
+                await updateDoc(doc(db, "Rooms", selectedRoomId), {
+                    [`participantsData.${activeUser.uid}.ExpenseCollection`]: col,
+                    [`participantsData.${activeUser.uid}.ExpenseCategory`]: cat
                 });
-                showToast("Mapping updated!");
+                showToast("Your expenses are now synced!");
                 closeModals();
-                // Logic within selection listener will trigger recalculation automatically
-            } catch (err) { showToast("Error mapping", true); }
+            } catch (err) { showToast("Error syncing share", true); }
         };
 
         document.getElementById('createRoomForm').onsubmit = async (e) => {
@@ -482,19 +390,16 @@
             const name = document.getElementById('newRoomName').value;
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             try {
-                const globalRoomRef = doc(collection(db, "Rooms"));
-                const roomId = globalRoomRef.id;
-                const pInfo = { name: userData.name, joinedAt: new Date().toISOString() };
-                
-                await setDoc(globalRoomRef, {
+                const ref = doc(collection(db, "Rooms"));
+                const roomId = ref.id;
+                await setDoc(ref, {
                     roomId, name, code, createdBy: activeUser.uid, createdAt: serverTimestamp(),
                     participants: [activeUser.uid],
-                    participantsData: { [activeUser.uid]: pInfo }
+                    participantsData: { [activeUser.uid]: { name: userData.name, joinedAt: new Date().toISOString() } }
                 });
                 await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId), { roomId, name, code });
-                closeModals();
-                selectRoom(roomId);
-            } catch (err) { showToast("Error creating room", true); }
+                closeModals(); selectRoom(roomId);
+            } catch (err) { showToast("Error creating", true); }
         };
 
         document.getElementById('joinRoomForm').onsubmit = async (e) => {
@@ -503,34 +408,25 @@
             try {
                 const q = query(collection(db, "Rooms"), where("code", "==", code));
                 const snap = await getDocs(q);
-                if (snap.empty) { showToast("Code not found", true); return; }
-                
+                if (snap.empty) { showToast("Invalid Code", true); return; }
                 const roomDoc = snap.docs[0];
                 const roomId = roomDoc.id;
-                const pInfo = { name: userData.name, joinedAt: new Date().toISOString() };
-
                 await updateDoc(doc(db, "Rooms", roomId), {
                     participants: arrayUnion(activeUser.uid),
-                    [`participantsData.${activeUser.uid}`]: pInfo
+                    [`participantsData.${activeUser.uid}`]: { name: userData.name, joinedAt: new Date().toISOString() }
                 });
-                await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId), { 
-                    roomId, name: roomDoc.data().name, code 
-                });
-                closeModals();
-                selectRoom(roomId);
-            } catch (err) { showToast("Error joining room", true); }
+                await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId), { roomId, name: roomDoc.data().name, code });
+                closeModals(); selectRoom(roomId);
+            } catch (err) { showToast("Error joining", true); }
         };
 
         window.openCategoryModal = () => document.getElementById('categoryModal').classList.remove('hidden');
         window.openCreateModal = () => document.getElementById('createModal').classList.remove('hidden');
         window.openJoinModal = () => document.getElementById('joinModal').classList.remove('hidden');
         window.closeModals = () => document.querySelectorAll('[id$="Modal"]').forEach(m => m.classList.add('hidden'));
-        window.toggleSidebar = (show) => {
-            document.getElementById('sidebar').classList.toggle('open', show);
-            document.getElementById('mobileOverlay').classList.toggle('hidden', !show);
-        };
-        window.logoutUser = () => signOut(auth).then(() => window.location.href = 'login.html');
+        window.toggleSidebar = (s) => document.getElementById('sidebar').classList.toggle('open', s);
         window.calculateRoomExpenses = calculateRoomExpenses;
+        window.logoutUser = () => signOut(auth).then(() => window.location.href = 'login.html');
     </script>
 </body>
 </html>
