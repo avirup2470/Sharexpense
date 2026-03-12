@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rules Configuration - Sharexpense</title>
+    <title>Rooms - Sharexpense</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .rule-card { @apply bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md; }
-        .input-field { @apply mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5 border; }
-        .badge { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        .sidebar-item { @apply flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-all cursor-pointer; }
+        .sidebar-item.active { @apply text-white bg-indigo-600 shadow-lg shadow-indigo-500/20; }
+        .glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
         
         #authOverlay {
             position: fixed;
@@ -21,112 +19,152 @@
             align-items: center;
             justify-content: center;
         }
+
+        #sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        @media (max-width: 1023px) {
+            #sidebar { transform: translateX(-100%); position: fixed; z-index: 50; }
+            #sidebar.open { transform: translateX(0); }
+        }
+
+        .room-card { @apply bg-white p-6 rounded-[2rem] border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer flex flex-col justify-between; }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            z-index: 12000;
+            display: none;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen pb-20 font-sans">
+<body class="bg-gray-50 min-h-screen flex overflow-x-hidden">
 
-    <!-- Auth Guard Overlay -->
+    <div id="toast" class="toast"></div>
+
     <div id="authOverlay">
         <div class="text-center">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-            <p class="mt-4 text-gray-500 font-medium">Loading Rule Engine...</p>
+            <p class="mt-4 text-gray-500 font-medium">Loading your rooms...</p>
         </div>
     </div>
 
-    <nav class="bg-white border-b border-gray-200 px-6 py-4 mb-8 sticky top-0 z-10">
-        <div class="max-w-5xl mx-auto flex justify-between items-center">
+    <div id="mobileOverlay" onclick="toggleSidebar(false)" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-gray-900 text-white flex flex-col p-6 h-screen shrink-0 border-r border-gray-800">
+        <div class="flex items-center justify-between mb-8 px-2">
             <div class="flex items-center gap-3">
-                <button onclick="window.location.href='dashboard.html'" class="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                </button>
-                <h1 class="text-xl font-bold text-gray-800">Classification Rules</h1>
-            </div>
-            <div class="flex gap-2">
-                <button id="saveBtn" class="text-sm px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg shadow-sm hover:bg-indigo-700 transition-all flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                    Save to Cloud
-                </button>
-            </div>
-        </div>
-    </nav>
-
-    <main class="max-w-5xl mx-auto px-6">
-        
-        <!-- Instructions -->
-        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 mb-8 flex items-start gap-4">
-            <div class="text-indigo-600 mt-1">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            </div>
-            <div>
-                <h3 class="font-bold text-indigo-900">Priority & Auto-Segregation</h3>
-                <p class="text-sm text-indigo-700 mt-1 leading-relaxed">
-                    Rules are processed by <b>Priority</b> (lowest number first). If a transaction matches multiple rules, the one with the higher priority (lower number) takes precedence.
-                </p>
-            </div>
-        </div>
-
-        <!-- Rules List -->
-        <div id="rulesContainer" class="space-y-6">
-            <!-- Rules will be injected here -->
-        </div>
-
-        <!-- Add New Rule Button -->
-        <button id="addRuleBtn" class="mt-8 w-full py-4 border-2 border-dashed border-gray-300 rounded-2xl text-gray-500 font-medium hover:border-indigo-400 hover:text-indigo-600 hover:bg-white transition-all flex items-center justify-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Define New Category Rule
-        </button>
-
-    </main>
-
-    <!-- Template for a Rule -->
-    <template id="ruleTemplate">
-        <div class="rule-card group relative">
-            <div class="flex justify-between items-start mb-6">
-                <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="md:col-span-1">
-                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Category Name</label>
-                        <input type="text" class="input-field rule-name" placeholder="e.g., Grocery">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Priority (Order)</label>
-                        <input type="number" class="input-field rule-priority" placeholder="1" value="1">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Logic Operator</label>
-                        <select class="input-field rule-operator">
-                            <option value="OR">OR (Any match)</option>
-                            <option value="AND">AND (All match)</option>
-                            <option value="NOT">NOT (Exclude if match)</option>
-                        </select>
-                    </div>
+                <div class="bg-indigo-600 p-2 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </div>
-                <button class="remove-btn ml-4 p-2 text-gray-300 hover:text-red-500 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                <h1 class="text-xl font-bold tracking-tight">Sharexpense</h1>
+            </div>
+            <button onclick="toggleSidebar(false)" class="lg:hidden text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+
+        <nav class="flex-grow space-y-1 overflow-y-auto pr-2">
+            <div onclick="window.location.href='dashboard.html'" class="sidebar-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                <span>Overview</span>
+            </div>
+
+            <div onclick="window.location.reload()" class="sidebar-item active">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span>Rooms</span>
+            </div>
+        </nav>
+
+        <div class="pt-6 border-t border-gray-800">
+            <button onclick="window.logoutUser()" class="sidebar-item w-full text-red-400 hover:bg-red-950/30">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <span>Log out</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-grow flex flex-col h-screen overflow-hidden">
+        <header class="bg-white border-b border-gray-100 p-6 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-4">
+                <button onclick="toggleSidebar(true)" class="lg:hidden p-2 bg-gray-50 rounded-lg text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
+                <h1 class="text-2xl font-bold text-gray-800">Shared Rooms</h1>
             </div>
-
-            <div class="mb-6">
-                <label class="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Keywords (comma separated)</label>
-                <input type="text" class="input-field rule-keywords" placeholder="swiggy, zomato, blinkit...">
+            
+            <div class="flex items-center gap-3">
+                <button onclick="openJoinModal()" class="px-4 py-2 text-indigo-600 font-bold hover:bg-indigo-50 rounded-xl transition-all">Join Room</button>
+                <button onclick="openCreateModal()" class="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">Create Room</button>
             </div>
+        </header>
 
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Min Amount (₹)</label>
-                    <input type="number" class="input-field rule-min" placeholder="0">
+        <main class="flex-grow overflow-y-auto p-6 md:p-10">
+            <div class="max-w-6xl mx-auto">
+                <div id="roomsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Rooms will be injected here -->
                 </div>
-                <div>
-                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Max Amount (₹)</label>
-                    <input type="number" class="input-field rule-max" placeholder="No limit">
+                
+                <div id="noRoomsState" class="hidden flex flex-col items-center justify-center py-20 text-center">
+                    <div class="bg-gray-100 p-8 rounded-full mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">You have no rooms</h3>
+                    <p class="text-gray-500 max-w-xs mx-auto">Create a room to start sharing expenses with friends or join an existing one.</p>
                 </div>
             </div>
+        </main>
+    </div>
+
+    <!-- Create Room Modal -->
+    <div id="createModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[11000] flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl font-bold text-gray-900">Create New Room</h3>
+                <button onclick="closeModals()" class="p-2 hover:bg-gray-100 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <form id="createRoomForm" class="space-y-6">
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Room Name</label>
+                    <input type="text" id="newRoomName" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="e.g. Flatmates, Road Trip">
+                </div>
+                <button type="submit" id="createBtn" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all">Create Room</button>
+            </form>
         </div>
-    </template>
+    </div>
+
+    <!-- Join Room Modal -->
+    <div id="joinModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[11000] flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl font-bold text-gray-900">Join a Room</h3>
+                <button onclick="closeModals()" class="p-2 hover:bg-gray-100 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <form id="joinRoomForm" class="space-y-6">
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Room Code</label>
+                    <input type="text" id="roomCodeInput" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Enter the 6-digit code">
+                </div>
+                <button type="submit" id="joinBtn" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all">Join Room</button>
+            </form>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, collection, setDoc, getDocs, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, query, where, getDocs, updateDoc, arrayUnion, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCpJFhOzhTnmUwiVs3ZvbH17EJdpawcy3k",
@@ -140,112 +178,211 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        
+
         let activeUser = null;
-        const container = document.getElementById('rulesContainer');
+        let userData = null;
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 activeUser = user;
-                await loadRules();
+                const userSnap = await getDoc(doc(db, "User", user.uid));
+                userData = userSnap.exists() ? userSnap.data() : { name: "User", email: user.email };
+                initRooms(user);
                 document.getElementById('authOverlay').style.display = 'none';
             } else {
                 window.location.href = 'login.html';
             }
         });
 
-        async function loadRules() {
-            const catCol = collection(db, "User", activeUser.uid, "Catagory");
-            const snapshot = await getDocs(catCol);
-            
-            container.innerHTML = '';
-            if (snapshot.empty) {
-                // Add first blank rule if empty
-                addNewRule();
-            } else {
-                const rules = [];
-                snapshot.forEach(doc => rules.push({ id: doc.id, ...doc.data() }));
-                // Sort by priority locally
-                rules.sort((a, b) => (a.priority || 99) - (b.priority || 99));
-                rules.forEach(rule => addNewRule(rule));
-            }
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.background = isError ? '#ef4444' : '#10b981';
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 3000);
         }
 
-        function addNewRule(data = {}) {
-            const temp = document.getElementById('ruleTemplate');
-            const clone = temp.content.cloneNode(true);
-            const card = clone.querySelector('.rule-card');
-            
-            card.querySelector('.rule-name').value = data.name || '';
-            card.querySelector('.rule-priority').value = data.priority || (container.children.length + 1);
-            card.querySelector('.rule-operator').value = data.operator || 'OR';
-            card.querySelector('.rule-keywords').value = data.keywords || '';
-            card.querySelector('.rule-min').value = data.min || 0;
-            card.querySelector('.rule-max').value = data.max || '';
-            
-            card.querySelector('.remove-btn').onclick = () => card.remove();
-            
-            container.appendChild(card);
-        }
+        function initRooms(user) {
+            const roomsRef = collection(db, "User", user.uid, "rooms");
+            onSnapshot(roomsRef, (snapshot) => {
+                const grid = document.getElementById('roomsGrid');
+                const empty = document.getElementById('noRoomsState');
+                grid.innerHTML = '';
 
-        document.getElementById('addRuleBtn').onclick = () => addNewRule();
-
-        document.getElementById('saveBtn').onclick = async () => {
-            if (!activeUser) return;
-            
-            const btn = document.getElementById('saveBtn');
-            const originalHTML = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerText = "Saving...";
-
-            const cards = container.querySelectorAll('.rule-card');
-            const batch = writeBatch(db);
-            const catCol = collection(db, "User", activeUser.uid, "Catagory");
-
-            // 1. Delete existing rules to ensure clean sync (Firestore doesn't have a simple replace collection)
-            const oldDocs = await getDocs(catCol);
-            oldDocs.forEach(d => batch.delete(d.ref));
-
-            // 2. Add new rules
-            cards.forEach(card => {
-                const name = card.querySelector('.rule-name').value.trim();
-                if (!name) return;
-
-                const ruleData = {
-                    name: name,
-                    priority: parseInt(card.querySelector('.rule-priority').value) || 99,
-                    operator: card.querySelector('.rule-operator').value,
-                    keywords: card.querySelector('.rule-keywords').value,
-                    min: parseFloat(card.querySelector('.rule-min').value) || 0,
-                    max: card.querySelector('.rule-max').value ? parseFloat(card.querySelector('.rule-max').value) : null,
-                    updatedAt: new Date().toISOString()
-                };
-
-                // Use the name as the Document ID to ensure uniqueness
-                const docRef = doc(catCol, name);
-                batch.set(docRef, ruleData);
+                if (snapshot.empty) {
+                    empty.classList.remove('hidden');
+                } else {
+                    empty.classList.add('hidden');
+                    snapshot.forEach(docSnap => {
+                        const data = docSnap.data();
+                        const card = document.createElement('div');
+                        card.className = 'room-card';
+                        card.onclick = () => window.location.href = `room_details.html?id=${data.roomId || docSnap.id}`;
+                        card.innerHTML = `
+                            <div>
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="bg-indigo-50 p-3 rounded-2xl text-indigo-600">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">${data.role || 'Member'}</span>
+                                </div>
+                                <h3 class="text-xl font-bold text-gray-800 mb-1">${data.name || 'Unnamed Room'}</h3>
+                                <p class="text-xs text-gray-400 font-medium">Code: <span class="text-indigo-600 font-bold tracking-widest">${data.code || 'N/A'}</span></p>
+                            </div>
+                            <div class="mt-8 flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600 border-2 border-white">
+                                        ${data.participantCount || 1}
+                                    </div>
+                                    <span class="text-[10px] text-gray-400 font-bold uppercase">Members</span>
+                                </div>
+                                <span class="text-xs font-bold text-indigo-600">Enter Room &rarr;</span>
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    });
+                }
             });
+        }
 
+        window.openCreateModal = () => document.getElementById('createModal').classList.remove('hidden');
+        window.openJoinModal = () => document.getElementById('joinModal').classList.remove('hidden');
+        window.closeModals = () => {
+            document.getElementById('createModal').classList.add('hidden');
+            document.getElementById('joinModal').classList.add('hidden');
+        };
+
+        document.getElementById('createRoomForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true; btn.innerText = "Creating...";
+            
+            const name = document.getElementById('newRoomName').value;
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            
             try {
-                await batch.commit();
-                btn.innerHTML = "✓ Saved Successfully";
-                btn.classList.replace('bg-indigo-600', 'bg-green-600');
-                setTimeout(() => {
-                    btn.innerHTML = originalHTML;
-                    btn.classList.replace('bg-green-600', 'bg-indigo-600');
-                    btn.disabled = false;
-                }, 2000);
+                // 1. Create Global Room (Root Level)
+                const globalRoomRef = doc(collection(db, "Rooms"));
+                const roomId = globalRoomRef.id;
+                
+                const globalData = {
+                    roomId,
+                    name,
+                    code,
+                    createdBy: activeUser.uid,
+                    createdAt: serverTimestamp(),
+                    participants: [activeUser.uid],
+                    participantsData: {
+                        [activeUser.uid]: {
+                            name: userData.name,
+                            photo: userData.photo || null,
+                            joinedAt: new Date().toISOString()
+                        }
+                    }
+                };
+                
+                await setDoc(globalRoomRef, globalData);
+
+                // 2. Add room reference to User's private collection
+                await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId), {
+                    roomId,
+                    name,
+                    code,
+                    role: 'admin',
+                    participantCount: 1,
+                    joinedAt: serverTimestamp()
+                });
+
+                // 3. Initialize roomExpense collection (handled implicitly by first document)
+                // We'll create a dummy initialization document to set the structure
+                await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId, "roomExpense", "init"), {
+                    ExpenseCollection: "Initial",
+                    ExpenseCategory: "Setup",
+                    initializedAt: serverTimestamp()
+                });
+
+                showToast("Room created successfully!");
+                closeModals();
+                e.target.reset();
             } catch (err) {
-                console.error(err);
-                btn.innerText = "Error Saving";
-                btn.classList.replace('bg-indigo-600', 'bg-red-600');
-                setTimeout(() => {
-                    btn.innerHTML = originalHTML;
-                    btn.classList.replace('bg-red-600', 'bg-indigo-600');
-                    btn.disabled = false;
-                }, 3000);
+                console.error("Error creating room:", err);
+                showToast("Failed to create room.", true);
+            } finally {
+                btn.disabled = false; btn.innerText = "Create Room";
             }
         };
+
+        document.getElementById('joinRoomForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('joinBtn');
+            const code = document.getElementById('roomCodeInput').value.trim();
+            btn.disabled = true; btn.innerText = "Joining...";
+
+            try {
+                // 1. Search Global Rooms for the code
+                const q = query(collection(db, "Rooms"), where("code", "==", code));
+                const querySnap = await getDocs(q);
+
+                if (querySnap.empty) {
+                    showToast("Invalid room code. Please try again.", true);
+                    return;
+                }
+
+                const roomDoc = querySnap.docs[0];
+                const roomData = roomDoc.data();
+                const roomId = roomDoc.id;
+
+                if (roomData.participants.includes(activeUser.uid)) {
+                    showToast("You are already a member of this room.");
+                    closeModals();
+                    return;
+                }
+
+                // 2. Update Global Room Participants
+                const globalUpdate = {
+                    participants: arrayUnion(activeUser.uid),
+                    [`participantsData.${activeUser.uid}`]: {
+                        name: userData.name,
+                        photo: userData.photo || null,
+                        joinedAt: new Date().toISOString()
+                    }
+                };
+                await updateDoc(doc(db, "Rooms", roomId), globalUpdate);
+
+                // 3. Add to User's private rooms list
+                await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId), {
+                    roomId,
+                    name: roomData.name,
+                    code: roomData.code,
+                    role: 'member',
+                    participantCount: (roomData.participants.length + 1),
+                    joinedAt: serverTimestamp()
+                });
+
+                // 4. Create local roomExpense entry
+                await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId, "roomExpense", "init"), {
+                    ExpenseCollection: "Joined Room",
+                    ExpenseCategory: "Setup",
+                    initializedAt: serverTimestamp()
+                });
+
+                showToast("Joined room successfully!");
+                closeModals();
+                e.target.reset();
+            } catch (err) {
+                console.error("Error joining room:", err);
+                showToast("An error occurred while joining.", true);
+            } finally {
+                btn.disabled = false; btn.innerText = "Join Room";
+            }
+        };
+
+        window.toggleSidebar = (show) => {
+            document.getElementById('sidebar').classList.toggle('open', show);
+            document.getElementById('mobileOverlay').classList.toggle('hidden', !show);
+        };
+
+        window.logoutUser = () => signOut(auth).then(() => window.location.href = 'login.html');
     </script>
 </body>
 </html>
