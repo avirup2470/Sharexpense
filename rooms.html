@@ -224,8 +224,8 @@
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 activeUser = user;
-                const snap = await getDoc(doc(db, \"User\", user.uid));
-                userData = snap.exists() ? snap.data() : { name: \"User\" };
+                const snap = await getDoc(doc(db, "User", user.uid));
+                userData = snap.exists() ? snap.data() : { name: "User" };
                 initSidebarRooms(user);
                 loadMetadata();
                 document.getElementById('authOverlay').style.display = 'none';
@@ -241,7 +241,7 @@
         }
 
         function initSidebarRooms(user) {
-            onSnapshot(collection(db, \"User\", user.uid, \"rooms\"), (snap) => {
+            onSnapshot(collection(db, "User", user.uid, "rooms"), (snap) => {
                 const list = document.getElementById('sidebarRoomList');
                 list.innerHTML = '';
                 snap.forEach(d => {
@@ -249,7 +249,7 @@
                     const item = document.createElement('div');
                     item.className = `room-nav-item ${selectedRoomId === data.roomId ? 'active' : ''}`;
                     item.onclick = () => selectRoom(data.roomId);
-                    item.innerHTML = `<span class=\"truncate\">${data.name}</span>`;
+                    item.innerHTML = `<span class="truncate">${data.name}</span>`;
                     list.appendChild(item);
                 });
             });
@@ -262,22 +262,22 @@
             document.getElementById('selectedRoomContent').classList.remove('hidden');
             document.getElementById('roomActions').classList.remove('hidden');
 
-            roomUnsub = onSnapshot(doc(db, \"Rooms\", id), (snap) => {
+            roomUnsub = onSnapshot(doc(db, "Rooms", id), (snap) => {
                 if (!snap.exists()) return;
                 currentRoomData = snap.data();
-                document.getElementById('roomHeader').innerHTML = `<h1 class=\"text-2xl font-bold text-gray-800\">${currentRoomData.name}</h1>`;
+                document.getElementById('roomHeader').innerHTML = `<h1 class="text-2xl font-bold text-gray-800">${currentRoomData.name}</h1>`;
                 document.getElementById('roomCodeText').innerText = currentRoomData.code;
 
                 const list = document.getElementById('participantsList');
                 list.innerHTML = '';
                 Object.entries(currentRoomData.participantsData || {}).forEach(([uid, info]) => {
                     const div = document.createElement('div');
-                    div.className = \"flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100\";
+                    div.className = "flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100";
                     div.innerHTML = `
-                        <div class=\"w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs\">${info.name.charAt(0)}</div>
-                        <div class=\"flex-grow\">
-                            <p class=\"text-sm font-bold\">${info.name} ${uid === activeUser.uid ? '(You)' : ''}</p>
-                            <p class=\"text-[10px] text-gray-400 font-bold uppercase\">${info.ExpenseCategory || 'Not Mapped'}</p>
+                        <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">${info.name.charAt(0)}</div>
+                        <div class="flex-grow">
+                            <p class="text-sm font-bold">${info.name} ${uid === activeUser.uid ? '(You)' : ''}</p>
+                            <p class="text-[10px] text-gray-400 font-bold uppercase">${info.ExpenseCategory || 'Not Mapped'}</p>
                         </div>
                     `;
                     list.appendChild(div);
@@ -301,7 +301,7 @@
 
                 if (cat) {
                     try {
-                        const q = query(collection(db, \"User\", uid, col), where(\"category\", \"==\", cat));
+                        const q = query(collection(db, "User", uid, col), where("category", "==", cat));
                         const snap = await getDocs(q);
                         snap.forEach(d => {
                             const val = parseFloat(d.data().amount);
@@ -312,7 +312,6 @@
                     }
                 }
                 
-                // Using (You) logic for self, but Chart.js will now treat each entry uniquely
                 const displayName = uid === activeUser.uid ? `${info.name} (You)` : info.name;
                 chartData.push({ label: displayName, value: sum });
                 grandTotal += sum;
@@ -357,16 +356,16 @@
         async function loadMetadata() {
             const colSel = document.getElementById('collectionSelect');
             const catSel = document.getElementById('categorySelect');
-            colSel.innerHTML = '<option value=\"\">Choose Collection</option><option value=\"expense\">Default Expenses</option>';
-            catSel.innerHTML = '<option value=\"\">Choose Category</option>';
+            colSel.innerHTML = '<option value="">Choose Collection</option><option value="expense">Default Expenses</option>';
+            catSel.innerHTML = '<option value="">Choose Category</option>';
 
-            const colSnap = await getDocs(collection(db, \"User\", activeUser.uid, \"CollectionsMetadata\"));
+            const colSnap = await getDocs(collection(db, "User", activeUser.uid, "CollectionsMetadata"));
             colSnap.forEach(d => {
                 const o = document.createElement('option');
                 o.value = d.id; o.textContent = d.data().name; colSel.appendChild(o);
             });
 
-            const catSnap = await getDocs(collection(db, \"User\", activeUser.uid, \"Catagory\"));
+            const catSnap = await getDocs(collection(db, "User", activeUser.uid, "Catagory"));
             catSnap.forEach(d => {
                 const o = document.createElement('option');
                 o.value = d.data().name; o.textContent = d.data().name; catSel.appendChild(o);
@@ -378,13 +377,13 @@
             const col = document.getElementById('collectionSelect').value || 'expense';
             const cat = document.getElementById('categorySelect').value;
             try {
-                await updateDoc(doc(db, \"Rooms\", selectedRoomId), {
+                await updateDoc(doc(db, "Rooms", selectedRoomId), {
                     [`participantsData.${activeUser.uid}.ExpenseCollection`]: col,
                     [`participantsData.${activeUser.uid}.ExpenseCategory`]: cat
                 });
-                showToast(\"Your expenses are now synced!\");
+                showToast("Your expenses are now synced!");
                 closeModals();
-            } catch (err) { showToast(\"Error syncing share\", true); }
+            } catch (err) { showToast("Error syncing share", true); }
         };
 
         document.getElementById('createRoomForm').onsubmit = async (e) => {
@@ -392,40 +391,40 @@
             const name = document.getElementById('newRoomName').value;
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             try {
-                const ref = doc(collection(db, \"Rooms\"));
+                const ref = doc(collection(db, "Rooms"));
                 const roomId = ref.id;
                 await setDoc(ref, {
                     roomId, name, code, createdBy: activeUser.uid, createdAt: serverTimestamp(),
                     participants: [activeUser.uid],
                     participantsData: { [activeUser.uid]: { name: userData.name, joinedAt: new Date().toISOString() } }
                 });
-                await setDoc(doc(db, \"User\", activeUser.uid, \"rooms\", roomId), { roomId, name, code });
+                await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId), { roomId, name, code });
                 closeModals(); selectRoom(roomId);
-            } catch (err) { showToast(\"Error creating\", true); }
+            } catch (err) { showToast("Error creating", true); }
         };
 
         document.getElementById('joinRoomForm').onsubmit = async (e) => {
             e.preventDefault();
             const code = document.getElementById('roomCodeInput').value.trim();
             try {
-                const q = query(collection(db, \"Rooms\"), where(\"code\", \"==\", code));
+                const q = query(collection(db, "Rooms"), where("code", "==", code));
                 const snap = await getDocs(q);
-                if (snap.empty) { showToast(\"Invalid Code\", true); return; }
+                if (snap.empty) { showToast("Invalid Code", true); return; }
                 const roomDoc = snap.docs[0];
                 const roomId = roomDoc.id;
-                await updateDoc(doc(db, \"Rooms\", roomId), {
+                await updateDoc(doc(db, "Rooms", roomId), {
                     participants: arrayUnion(activeUser.uid),
                     [`participantsData.${activeUser.uid}`]: { name: userData.name, joinedAt: new Date().toISOString() }
                 });
-                await setDoc(doc(db, \"User\", activeUser.uid, \"rooms\", roomId), { roomId, name: roomDoc.data().name, code });
+                await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId), { roomId, name: roomDoc.data().name, code });
                 closeModals(); selectRoom(roomId);
-            } catch (err) { showToast(\"Error joining\", true); }
+            } catch (err) { showToast("Error joining", true); }
         };
 
         window.openCategoryModal = () => document.getElementById('categoryModal').classList.remove('hidden');
         window.openCreateModal = () => document.getElementById('createModal').classList.remove('hidden');
         window.openJoinModal = () => document.getElementById('joinModal').classList.remove('hidden');
-        window.closeModals = () => document.querySelectorAll('[id$=\"Modal\"]').forEach(m => m.classList.add('hidden'));
+        window.closeModals = () => document.querySelectorAll('[id$="Modal"]').forEach(m => m.classList.add('hidden'));
         window.toggleSidebar = (s) => document.getElementById('sidebar').classList.toggle('open', s);
         window.calculateRoomExpenses = calculateRoomExpenses;
         window.logoutUser = () => signOut(auth).then(() => window.location.href = 'login.html');
