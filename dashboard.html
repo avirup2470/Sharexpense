@@ -34,6 +34,10 @@
         
         .drop-zone { border: 2px dashed #e2e8f0; transition: all 0.3s ease; }
         .drop-zone.dragover { border-color: #6366f1; background: #f5f3ff; }
+
+        .delete-btn { opacity: 0; transition: opacity 0.2s; }
+        tr:hover .delete-btn { opacity: 1; }
+        @media (max-width: 768px) { .delete-btn { opacity: 1; } }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex overflow-x-hidden">
@@ -138,6 +142,7 @@
                                         <th class="pb-6">Category</th>
                                         <th class="pb-6">Date</th>
                                         <th class="pb-6 text-right">Amount</th>
+                                        <th class="pb-6 w-10"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="expenseList" class="text-sm"></tbody>
@@ -148,6 +153,21 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[12000] flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2rem] w-full max-w-sm p-8 shadow-2xl text-center">
+            <div class="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Delete Transaction?</h3>
+            <p class="text-gray-500 mb-8">This action cannot be undone. Are you sure you want to remove this expense?</p>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="document.getElementById('confirmModal').classList.add('hidden')" class="py-3 px-6 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all">Cancel</button>
+                <button id="confirmDeleteBtn" class="py-3 px-6 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-all">Delete</button>
+            </div>
+        </div>
     </div>
 
     <!-- Expense Modal -->
@@ -253,7 +273,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, addDoc, onSnapshot, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, addDoc, onSnapshot, query, orderBy, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCpJFhOzhTnmUwiVs3ZvbH17EJdpawcy3k",
@@ -274,6 +294,7 @@
         let unsubscribeExpenses = null;
         let classificationRules = [];
         let parsedExcelData = null;
+        let expenseToDelete = null;
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -299,7 +320,7 @@
                 }
             }
 
-            // Sync Rules & Categories for Auto Classification
+            // Sync Rules & Categories
             onSnapshot(collection(db, "User", user.uid, "Catagory"), (snapshot) => {
                 const catSelect = document.getElementById('cat');
                 catSelect.innerHTML = '';
@@ -308,8 +329,6 @@
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     const categoryName = data.name || doc.id;
-                    
-                    // Store rule for classification
                     classificationRules.push({
                         name: categoryName,
                         keywords: (data.keywords || '').split(',').map(k => k.trim().toLowerCase()).filter(k => k),
@@ -322,7 +341,6 @@
                     catSelect.appendChild(opt);
                 });
                 
-                // Sort rules by priority descending
                 classificationRules.sort((a, b) => b.priority - a.priority);
 
                 const addOpt = document.createElement('option');
@@ -332,7 +350,7 @@
                 catSelect.appendChild(addOpt);
             });
 
-            // Metadata Sync for Sidebar
+            // Metadata Sync
             onSnapshot(collection(db, "User", user.uid, "CollectionsMetadata"), (snapshot) => {
                 const list = document.getElementById('collectionsList');
                 const defaultItem = document.getElementById('defaultColItem');
@@ -386,18 +404,58 @@
             if (window.innerWidth < 1024) toggleSidebar(false);
         };
 
-        // --- Classification Logic ---
+        // --- Deletion Logic ---
+        window.requestDelete = (id) => {
+            expenseToDelete = id;
+            document.getElementById('confirmModal').classList.remove('hidden');
+        };
+
+        document.getElementById('confirmDeleteBtn').onclick = async () => {
+            if (!expenseToDelete || !activeUser) return;
+            try {
+                await deleteDoc(doc(db, "User", activeUser.uid, activeCollection, expenseToDelete));
+                document.getElementById('confirmModal').classList.add('hidden');
+                expenseToDelete = null;
+            } catch (e) {
+                console.error("Delete error:", e);
+            }
+        };
+
+        function refreshExpensesUI(expenses) {
+            const tbody = document.getElementById('expenseList');
+            const empty = document.getElementById('emptyState');
+            
+            if (expenses.length === 0) {
+                tbody.innerHTML = '';
+                empty.classList.remove('hidden');
+            } else {
+                empty.classList.add('hidden');
+                tbody.innerHTML = expenses.map(e => `
+                    <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors group cursor-pointer" onclick="window.requestDelete('${e.id}')">
+                        <td class="py-5 font-semibold text-gray-800">${e.description}</td>
+                        <td class="py-5"><span class="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase">${e.category}</span></td>
+                        <td class="py-5 text-gray-400 text-xs">${new Date(e.date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</td>
+                        <td class="py-5 text-right font-bold text-gray-900">₹${parseFloat(e.amount).toLocaleString()}</td>
+                        <td class="py-5 text-right pr-2">
+                            <button class="delete-btn p-2 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            updateChart(expenses);
+        }
+
+        // --- Rest of Dashboard Logic (Unchanged but included for completeness) ---
         function classifyExpense(description) {
             const desc = description.toLowerCase();
             for (const rule of classificationRules) {
-                if (rule.keywords.some(k => desc.includes(k))) {
-                    return rule.name;
-                }
+                if (rule.keywords.some(k => desc.includes(k))) return rule.name;
             }
             return "Misc";
         }
 
-        // --- Excel Handling ---
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
         const startUploadBtn = document.getElementById('startUploadBtn');
@@ -416,7 +474,6 @@
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 const rows = XLSX.utils.sheet_to_json(firstSheet);
                 
-                // Minimal validation: Check if mandatory columns exist
                 if (rows.length > 0) {
                     const keys = Object.keys(rows[0]).map(k => k.toLowerCase());
                     if (keys.includes('description') && keys.includes('amount') && (keys.includes('date') || keys.includes('time'))) {
@@ -424,7 +481,7 @@
                         startUploadBtn.disabled = false;
                         startUploadBtn.className = "w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all";
                         startUploadBtn.innerText = `Process ${rows.length} Transactions`;
-                        dropZone.innerHTML = `<p class="font-bold text-indigo-600">File Loaded: ${file.name}</p><p class="text-xs text-gray-400 mt-1">Found ${rows.length} entries. Click 'Start Batch' below.</p>`;
+                        dropZone.innerHTML = `<p class="font-bold text-indigo-600">File Loaded: ${file.name}</p><p class="text-xs text-gray-400 mt-1">Found ${rows.length} entries.</p>`;
                     } else {
                         alert("Sheet must contain columns: Description, Amount, and Date");
                     }
@@ -435,13 +492,12 @@
 
         startUploadBtn.onclick = async () => {
             if (!parsedExcelData || !activeUser) return;
-            
             startUploadBtn.disabled = true;
             document.getElementById('uploadProgress').classList.remove('hidden');
             const bar = document.getElementById('progressBar');
             const txt = document.getElementById('progressText');
             
-            const batchSize = 100; // Firestore batch limit is 500, but 100 is safer for performance
+            const batchSize = 100;
             let count = 0;
             
             for (let i = 0; i < parsedExcelData.length; i += batchSize) {
@@ -449,7 +505,6 @@
                 const chunk = parsedExcelData.slice(i, i + batchSize);
                 
                 chunk.forEach(row => {
-                    // Normalize keys
                     const rowData = {};
                     Object.keys(row).forEach(k => rowData[k.toLowerCase()] = row[k]);
 
@@ -457,7 +512,6 @@
                     const amount = parseFloat(rowData.amount) || 0;
                     const dateRaw = rowData.date;
                     
-                    // Format date (Excel often stores dates as numbers)
                     let formattedDate = new Date().toISOString().split('T')[0];
                     if (dateRaw) {
                         const d = isNaN(dateRaw) ? new Date(dateRaw) : new Date((dateRaw - 25569) * 86400 * 1000);
@@ -465,16 +519,8 @@
                     }
 
                     const category = classifyExpense(description);
-                    
                     const docRef = doc(collection(db, "User", activeUser.uid, activeCollection));
-                    batch.set(docRef, {
-                        description,
-                        amount,
-                        category,
-                        date: formattedDate,
-                        createdAt: new Date().toISOString(),
-                        source: 'excel_import'
-                    });
+                    batch.set(docRef, { description, amount, category, date: formattedDate, createdAt: new Date().toISOString(), source: 'excel_import' });
                 });
 
                 await batch.commit();
@@ -490,38 +536,12 @@
                 document.getElementById('uploadProgress').classList.add('hidden');
                 startUploadBtn.disabled = false;
                 parsedExcelData = null;
-                // Reset dropzone
                 dropZone.innerHTML = `
-                    <div class="bg-indigo-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <svg class="text-indigo-600" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    </div>
+                    <div class="bg-indigo-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"><svg class="text-indigo-600" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
                     <p class="font-bold text-gray-800">Click or drag to upload sheet</p>
                 `;
             }, 1500);
         };
-
-        // --- Standard Dashboard Logic ---
-
-        function refreshExpensesUI(expenses) {
-            const tbody = document.getElementById('expenseList');
-            const empty = document.getElementById('emptyState');
-            
-            if (expenses.length === 0) {
-                tbody.innerHTML = '';
-                empty.classList.remove('hidden');
-            } else {
-                empty.classList.add('hidden');
-                tbody.innerHTML = expenses.map(e => `
-                    <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td class="py-5 font-semibold text-gray-800">${e.description}</td>
-                        <td class="py-5"><span class="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase">${e.category}</span></td>
-                        <td class="py-5 text-gray-400 text-xs">${new Date(e.date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</td>
-                        <td class="py-5 text-right font-bold text-gray-900">₹${parseFloat(e.amount).toLocaleString()}</td>
-                    </tr>
-                `).join('');
-            }
-            updateChart(expenses);
-        }
 
         function updateChart(expenses) {
             const totals = {};
@@ -534,10 +554,7 @@
             const ctx = document.getElementById('expenseChart').getContext('2d');
             chart = new Chart(ctx, {
                 type: 'doughnut',
-                data: {
-                    labels,
-                    datasets: [{ data: values, backgroundColor: palette, borderWidth: 0, cutout: '75%', hoverOffset: 4 }]
-                },
+                data: { labels, datasets: [{ data: values, backgroundColor: palette, borderWidth: 0, cutout: '75%', hoverOffset: 4 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
 
@@ -560,23 +577,13 @@
             overlay.classList.toggle('hidden', !show);
         };
 
-        window.openNewCollectionModal = () => {
-            document.getElementById('collectionModal').classList.remove('hidden');
-        };
+        window.openNewCollectionModal = () => document.getElementById('collectionModal').classList.remove('hidden');
 
         document.getElementById('expenseForm').onsubmit = async (e) => {
             e.preventDefault();
             const cat = document.getElementById('cat').value;
             if (cat === "ADD_NEW") return;
-
-            const data = {
-                description: document.getElementById('desc').value,
-                amount: document.getElementById('amt').value,
-                category: cat,
-                date: document.getElementById('date').value,
-                createdAt: new Date().toISOString()
-            };
-
+            const data = { description: document.getElementById('desc').value, amount: document.getElementById('amt').value, category: cat, date: document.getElementById('date').value, createdAt: new Date().toISOString() };
             await addDoc(collection(db, "User", activeUser.uid, activeCollection), data);
             document.getElementById('modal').classList.add('hidden');
             e.target.reset();
@@ -587,14 +594,8 @@
             e.preventDefault();
             const rawName = document.getElementById('colName').value.trim();
             const type = document.querySelector('input[name="colType"]:checked').value;
-            
             const metadataId = rawName.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now();
-
-            await setDoc(doc(db, "User", activeUser.uid, "CollectionsMetadata", metadataId), { 
-                name: rawName, 
-                type: type 
-            });
-
+            await setDoc(doc(db, "User", activeUser.uid, "CollectionsMetadata", metadataId), { name: rawName, type: type });
             document.getElementById('collectionModal').classList.add('hidden');
             e.target.reset();
             window.switchCollection(metadataId, rawName, type);
