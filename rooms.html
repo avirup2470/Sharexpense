@@ -27,9 +27,25 @@
         }
 
         .room-card { @apply bg-white p-6 rounded-[2rem] border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer flex flex-col justify-between; }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            z-index: 12000;
+            display: none;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex overflow-x-hidden">
+
+    <div id="toast" class="toast"></div>
 
     <div id="authOverlay">
         <div class="text-center">
@@ -121,7 +137,7 @@
                     <label class="text-xs font-bold text-gray-400 uppercase">Room Name</label>
                     <input type="text" id="newRoomName" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="e.g. Flatmates, Road Trip">
                 </div>
-                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all">Create Room</button>
+                <button type="submit" id="createBtn" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all">Create Room</button>
             </form>
         </div>
     </div>
@@ -140,7 +156,7 @@
                     <label class="text-xs font-bold text-gray-400 uppercase">Room Code</label>
                     <input type="text" id="roomCodeInput" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Enter the 6-digit code">
                 </div>
-                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all">Join Room</button>
+                <button type="submit" id="joinBtn" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all">Join Room</button>
             </form>
         </div>
     </div>
@@ -148,7 +164,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, collection, onSnapshot, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, query, where, getDocs, updateDoc, arrayUnion, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCpJFhOzhTnmUwiVs3ZvbH17EJdpawcy3k",
@@ -164,16 +180,27 @@
         const db = getFirestore(app);
 
         let activeUser = null;
+        let userData = null;
 
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
                 activeUser = user;
+                const userSnap = await getDoc(doc(db, "User", user.uid));
+                userData = userSnap.exists() ? userSnap.data() : { name: "User", email: user.email };
                 initRooms(user);
                 document.getElementById('authOverlay').style.display = 'none';
             } else {
                 window.location.href = 'login.html';
             }
         });
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.background = isError ? '#ef4444' : '#10b981';
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 3000);
+        }
 
         function initRooms(user) {
             const roomsRef = collection(db, "User", user.uid, "rooms");
@@ -186,27 +213,30 @@
                     empty.classList.remove('hidden');
                 } else {
                     empty.classList.add('hidden');
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
+                    snapshot.forEach(docSnap => {
+                        const data = docSnap.data();
                         const card = document.createElement('div');
                         card.className = 'room-card';
-                        card.onclick = () => window.location.href = `room_details.html?id=${doc.id}`;
+                        card.onclick = () => window.location.href = `room_details.html?id=${data.roomId || docSnap.id}`;
                         card.innerHTML = `
                             <div>
                                 <div class="flex items-start justify-between mb-4">
                                     <div class="bg-indigo-50 p-3 rounded-2xl text-indigo-600">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                                     </div>
-                                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Shared Room</span>
+                                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">${data.role || 'Member'}</span>
                                 </div>
                                 <h3 class="text-xl font-bold text-gray-800 mb-1">${data.name || 'Unnamed Room'}</h3>
-                                <p class="text-xs text-gray-400 font-medium">Code: <span class="text-indigo-600 font-bold">${data.code || 'N/A'}</span></p>
+                                <p class="text-xs text-gray-400 font-medium">Code: <span class="text-indigo-600 font-bold tracking-widest">${data.code || 'N/A'}</span></p>
                             </div>
                             <div class="mt-8 flex items-center justify-between">
-                                <div class="flex -space-x-2">
-                                    <div class="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-[10px] font-bold">U</div>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600 border-2 border-white">
+                                        ${data.participantCount || 1}
+                                    </div>
+                                    <span class="text-[10px] text-gray-400 font-bold uppercase">Members</span>
                                 </div>
-                                <span class="text-xs font-bold text-indigo-600">View Details &rarr;</span>
+                                <span class="text-xs font-bold text-indigo-600">Enter Room &rarr;</span>
                             </div>
                         `;
                         grid.appendChild(card);
@@ -224,35 +254,127 @@
 
         document.getElementById('createRoomForm').onsubmit = async (e) => {
             e.preventDefault();
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true; btn.innerText = "Creating...";
+            
             const name = document.getElementById('newRoomName').value;
-            const code = Math.floor(100000 + Math.random() * 900000).toString(); // Simple 6-digit code
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
             
             try {
-                // Add to user's local rooms list
-                await addDoc(collection(db, "User", activeUser.uid, "rooms"), {
+                // 1. Create Global Room (Root Level)
+                const globalRoomRef = doc(collection(db, "Rooms"));
+                const roomId = globalRoomRef.id;
+                
+                const globalData = {
+                    roomId,
+                    name,
+                    code,
+                    createdBy: activeUser.uid,
+                    createdAt: serverTimestamp(),
+                    participants: [activeUser.uid],
+                    participantsData: {
+                        [activeUser.uid]: {
+                            name: userData.name,
+                            photo: userData.photo || null,
+                            joinedAt: new Date().toISOString()
+                        }
+                    }
+                };
+                
+                await setDoc(globalRoomRef, globalData);
+
+                // 2. Add room reference to User's private collection
+                await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId), {
+                    roomId,
                     name,
                     code,
                     role: 'admin',
-                    createdAt: serverTimestamp()
+                    participantCount: 1,
+                    joinedAt: serverTimestamp()
                 });
-                
-                // Note: In a real production app, you'd also create a global "Rooms" collection 
-                // to facilitate joining via code. This implementation focuses on the User's subcollection.
-                
+
+                // 3. Initialize roomExpense collection (handled implicitly by first document)
+                // We'll create a dummy initialization document to set the structure
+                await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId, "roomExpense", "init"), {
+                    ExpenseCollection: "Initial",
+                    ExpenseCategory: "Setup",
+                    initializedAt: serverTimestamp()
+                });
+
+                showToast("Room created successfully!");
                 closeModals();
                 e.target.reset();
             } catch (err) {
                 console.error("Error creating room:", err);
+                showToast("Failed to create room.", true);
+            } finally {
+                btn.disabled = false; btn.innerText = "Create Room";
             }
         };
 
         document.getElementById('joinRoomForm').onsubmit = async (e) => {
             e.preventDefault();
-            const code = document.getElementById('roomCodeInput').value;
-            // logic to check global room codes and add to User/UID/rooms would go here
-            console.log("Joining room with code:", code);
-            closeModals();
-            e.target.reset();
+            const btn = document.getElementById('joinBtn');
+            const code = document.getElementById('roomCodeInput').value.trim();
+            btn.disabled = true; btn.innerText = "Joining...";
+
+            try {
+                // 1. Search Global Rooms for the code
+                const q = query(collection(db, "Rooms"), where("code", "==", code));
+                const querySnap = await getDocs(q);
+
+                if (querySnap.empty) {
+                    showToast("Invalid room code. Please try again.", true);
+                    return;
+                }
+
+                const roomDoc = querySnap.docs[0];
+                const roomData = roomDoc.data();
+                const roomId = roomDoc.id;
+
+                if (roomData.participants.includes(activeUser.uid)) {
+                    showToast("You are already a member of this room.");
+                    closeModals();
+                    return;
+                }
+
+                // 2. Update Global Room Participants
+                const globalUpdate = {
+                    participants: arrayUnion(activeUser.uid),
+                    [`participantsData.${activeUser.uid}`]: {
+                        name: userData.name,
+                        photo: userData.photo || null,
+                        joinedAt: new Date().toISOString()
+                    }
+                };
+                await updateDoc(doc(db, "Rooms", roomId), globalUpdate);
+
+                // 3. Add to User's private rooms list
+                await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId), {
+                    roomId,
+                    name: roomData.name,
+                    code: roomData.code,
+                    role: 'member',
+                    participantCount: (roomData.participants.length + 1),
+                    joinedAt: serverTimestamp()
+                });
+
+                // 4. Create local roomExpense entry
+                await setDoc(doc(db, "User", activeUser.uid, "rooms", roomId, "roomExpense", "init"), {
+                    ExpenseCollection: "Joined Room",
+                    ExpenseCategory: "Setup",
+                    initializedAt: serverTimestamp()
+                });
+
+                showToast("Joined room successfully!");
+                closeModals();
+                e.target.reset();
+            } catch (err) {
+                console.error("Error joining room:", err);
+                showToast("An error occurred while joining.", true);
+            } finally {
+                btn.disabled = false; btn.innerText = "Join Room";
+            }
         };
 
         window.toggleSidebar = (show) => {
