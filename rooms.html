@@ -294,23 +294,25 @@
             let grandTotal = 0;
             const entries = Object.entries(currentRoomData.participantsData);
 
-            // Sequential fetch ensures we handle individual user permissions gracefully
             for (const [uid, info] of entries) {
-                const col = info.ExpenseCollection;
+                // Ensure we use 'expense' as default if mapping is missing
+                const col = info.ExpenseCollection || 'expense';
                 const cat = info.ExpenseCategory;
                 let sum = 0;
 
-                if (col && cat) {
+                if (cat) {
                     try {
-                        // NOTE: If permission errors occur here, it's because Firebase rules block reading other users' private subcollections.
-                        // Ideally, users should "push" their totals to the room document instead of the room "pulling" them.
                         const q = query(collection(db, "User", uid, col), where("category", "==", cat));
                         const snap = await getDocs(q);
-                        snap.forEach(d => sum += (parseFloat(d.data().amount) || 0));
+                        snap.forEach(d => {
+                            const val = parseFloat(d.data().amount);
+                            if (!isNaN(val)) sum += val;
+                        });
                     } catch (e) {
-                        console.warn(`Could not fetch data for ${info.name}. If this isn't you, ensure your security rules allow room participants to read mapped collections.`);
+                        console.log(`Fetch issue for ${info.name}:`, e.message);
                     }
                 }
+                
                 totals[info.name] = sum;
                 grandTotal += sum;
             }
@@ -325,7 +327,6 @@
             const ctx = document.getElementById('expensePieChart').getContext('2d');
             const labels = Object.keys(dataMap);
             const values = Object.values(dataMap);
-            const hasData = values.some(v => v > 0);
 
             if (chartInstance) chartInstance.destroy();
 
@@ -373,7 +374,7 @@
 
         document.getElementById('categoryForm').onsubmit = async (e) => {
             e.preventDefault();
-            const col = document.getElementById('collectionSelect').value;
+            const col = document.getElementById('collectionSelect').value || 'expense';
             const cat = document.getElementById('categorySelect').value;
             try {
                 await updateDoc(doc(db, "Rooms", selectedRoomId), {
