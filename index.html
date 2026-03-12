@@ -3,381 +3,341 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transaction Analysis Dashboard</title>
+    <title>Dashboard - Sharexpense</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
-        .card { @apply bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-        .edit-select { @apply bg-transparent border-none text-[10px] font-bold uppercase cursor-pointer focus:ring-0 p-0 w-full; }
-        #dropZone.dragover { @apply border-indigo-500 bg-indigo-50; }
-        .stat-label { @apply text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1; }
-        .stat-value { @apply text-lg font-bold text-gray-800; }
-
-        /* Print Specific Styles */
-        @media print {
-            body { background-color: white !important; padding: 0 !important; margin: 0 !important; }
-            #uploadSection, .action-buttons, nav, #dashboardContent > div:first-child, .edit-select-arrow { 
-                display: none !important; 
-            }
-            .max-w-7xl { max-width: 100% !important; width: 100% !important; margin: 0 !important; padding: 10px !important; }
-            .card { border: 1px solid #eee !important; box-shadow: none !important; break-inside: avoid; }
-            .overflow-y-auto { max-height: none !important; overflow: visible !important; }
-            #transactionTable select { appearance: none; -webkit-appearance: none; pointer-events: none; }
-            .grid { display: block !important; }
-            .grid > div { margin-bottom: 20px; width: 100% !important; }
-            canvas { max-width: 400px !important; margin: 0 auto; }
-            tr { break-inside: avoid; page-break-inside: avoid; }
+        .sidebar-item { @apply flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-all cursor-pointer; }
+        .sidebar-item.active { @apply text-white bg-indigo-600 shadow-lg shadow-indigo-500/20; }
+        .glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        
+        #authOverlay {
+            position: fixed;
+            inset: 0;
+            background: white;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen pb-12 font-sans">
+<body class="bg-gray-50 min-h-screen flex overflow-x-hidden">
 
-    <nav class="bg-white border-b border-gray-200 px-6 py-4 mb-6">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold text-indigo-600 flex items-center gap-2">
+    <!-- Mandatory Auth Guard Overlay -->
+    <div id="authOverlay">
+        <div class="text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+            <p class="mt-4 text-gray-500 font-medium animate-pulse">Verifying access...</p>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="hidden lg:flex w-64 bg-gray-900 text-white flex-col p-6 sticky top-0 h-screen">
+        <div class="flex items-center gap-3 mb-10 px-2">
+            <div class="bg-indigo-600 p-2 rounded-lg">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                Financial Insights
-            </h1>
-            <div id="fileStatus" class="text-sm text-gray-400 font-medium italic">Monthly Analysis Ready</div>
-        </div>
-    </nav>
-
-    <main class="max-w-7xl mx-auto px-4 sm:px-6">
-        
-        <!-- Upload Section -->
-        <div id="uploadSection" class="mb-8">
-            <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center transition-all bg-white cursor-pointer hover:border-indigo-400">
-                <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" class="hidden">
-                <div class="flex flex-col items-center">
-                    <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a2 2 0 00-2-2H5a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2zm0 0h2a2 2 0 002-2v-2a2 2 0 00-2-2H9m12 10v-2a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 00-2-2h-2a2 2 0 00-2 2v10m-6-10a2 2 0 00-2-2H5a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7z"/></svg>
-                    <p class="text-lg font-medium text-gray-700">Drop Account Statement (Excel/CSV)</p>
-                    <p class="text-sm text-gray-500 mt-1">Categorization & Monthly grouping applied</p>
-                </div>
             </div>
+            <h1 class="text-xl font-bold tracking-tight">Sharexpense</h1>
         </div>
 
-        <!-- Dashboard Content -->
-        <div id="dashboardContent" class="hidden">
-            <!-- Filter Bar -->
-            <div class="flex flex-wrap items-center gap-4 mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <div class="flex flex-col">
-                    <label class="text-[10px] uppercase font-bold text-gray-400 mb-1">Time Period</label>
-                    <select id="monthFilter" class="text-sm border rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-200">
-                        <option value="all">All Time (Total Sum)</option>
-                    </select>
+        <nav class="flex-grow space-y-2">
+            <div class="sidebar-item active">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                <span>Overview</span>
+            </div>
+            <div class="sidebar-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span>Profile</span>
+            </div>
+            <div class="sidebar-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span>Room</span>
+            </div>
+            <div class="sidebar-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span>Settings</span>
+            </div>
+        </nav>
+
+        <div class="pt-6 border-t border-gray-800">
+            <button onclick="window.logoutUser()" class="sidebar-item w-full text-red-400 hover:bg-red-950/30 hover:text-red-300">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <span>Log out</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-4 md:p-8 w-full max-w-7xl mx-auto">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <div>
+                <h2 class="text-3xl font-bold text-gray-800" id="welcomeUser">Hello!</h2>
+                <p class="text-gray-500">Track and manage your daily spending.</p>
+            </div>
+            <div class="flex items-center gap-4 w-full md:w-auto">
+                <button onclick="document.getElementById('modal').classList.remove('hidden')" class="flex-grow md:flex-none bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add Expense
+                </button>
+                <div class="w-12 h-12 rounded-2xl bg-white shadow-sm border border-gray-100 flex items-center justify-center overflow-hidden">
+                    <img id="userImg" src="" alt="Profile" class="hidden w-full h-full object-cover">
+                    <span id="userInitials" class="text-indigo-600 font-bold text-lg uppercase">?</span>
                 </div>
-                <div class="flex flex-col">
-                    <label class="text-[10px] uppercase font-bold text-gray-400 mb-1">Category</label>
-                    <select id="categoryFilter" class="text-sm border rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-200">
-                        <option value="all">All Categories</option>
-                        <option value="EMI">EMI</option>
-                        <option value="Family">Family</option>
-                        <option value="Online Shopping">Shopping</option>
-                        <option value="Travel">Travel</option>
-                        <option value="Rent">Rent</option>
-                        <option value="Home">Home</option>
-                        <option value="Daily Necessities">Daily</option>
-                        <option value="Savings">Savings</option>
-                        <option value="Transportation">Local Transport</option>
-                        <option value="Mobile Recharge">Mobile</option>
-                        <option value="Unknown">Unknown</option>
-                    </select>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Analysis Chart -->
+            <div class="lg:col-span-4 glass-card p-8 rounded-[2rem] shadow-sm flex flex-col">
+                <h3 class="font-bold text-gray-800 text-lg mb-6">Spending Analysis</h3>
+                <div class="relative flex-grow min-h-[250px]">
+                    <canvas id="expenseChart"></canvas>
                 </div>
-                <div class="flex flex-col flex-grow">
-                    <label class="text-[10px] uppercase font-bold text-gray-400 mb-1">Search Keywords</label>
-                    <input type="text" id="tableSearch" placeholder="Search transactions..." class="text-sm border rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-200 w-full">
+                <div id="chartLegend" class="mt-8 space-y-3">
+                    <!-- Dynamic legend -->
                 </div>
             </div>
 
-            <!-- Top Summary Cards -->
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
-                <div class="card bg-slate-900 border-none text-white">
-                    <p class="stat-label text-slate-400">Total Spent</p>
-                    <p class="stat-value text-white" id="totalSpent">₹0</p>
-                </div>
-                <div class="card border-l-4 border-rose-500">
-                    <p class="stat-label">EMI & Loans</p>
-                    <p class="stat-value" id="emiTotal">₹0</p>
-                </div>
-                <div class="card border-l-4 border-pink-500">
-                    <p class="stat-label">Family</p>
-                    <p class="stat-value" id="familyTotal">₹0</p>
-                </div>
-                <div class="card border-l-4 border-cyan-500">
-                    <p class="stat-label">Shopping</p>
-                    <p class="stat-value" id="shoppingTotal">₹0</p>
-                </div>
-                <div class="card border-l-4 border-teal-500">
-                    <p class="stat-label">Travel/Flight</p>
-                    <p class="stat-value" id="travelTotal">₹0</p>
-                </div>
-                <div class="card border-l-4 border-green-500">
-                    <p class="stat-label">Savings</p>
-                    <p class="stat-value" id="savingsTotal">₹0</p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2 space-y-6">
-                    <div class="card">
-                        <h2 class="text-md font-semibold mb-4 flex items-center gap-2">
-                            <span class="w-2 h-2 bg-indigo-500 rounded-full"></span>
-                            Expense Distribution
-                        </h2>
-                        <div class="h-[300px] flex items-center justify-center">
-                            <canvas id="expenseChart"></canvas>
-                        </div>
-                    </div>
-
-                    <div id="ledgerContainer" class="card overflow-hidden">
-                        <div class="flex justify-between items-center mb-4">
-                            <h2 class="text-md font-semibold">Transaction Ledger</h2>
-                        </div>
-                        <div id="tableWrapper" class="overflow-x-auto max-h-[500px] overflow-y-auto border rounded-lg">
-                            <table class="w-full text-left">
-                                <thead class="sticky top-0 bg-gray-100 text-gray-600 text-[10px] uppercase font-bold tracking-widest border-b">
-                                    <tr>
-                                        <th class="px-4 py-2">Date</th>
-                                        <th class="px-4 py-2">Details</th>
-                                        <th class="px-4 py-2 text-right">Debit</th>
-                                        <th class="px-4 py-2 text-center">Type</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="transactionTable" class="divide-y divide-gray-50 text-[11px]"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="space-y-6 action-buttons">
-                    <div class="card">
-                        <h2 class="text-md font-semibold mb-4 text-indigo-900 border-b pb-2">Rules Applied</h2>
-                        <div class="text-[10px] space-y-3 text-gray-500">
-                            <p><span class="font-bold text-pink-600 uppercase">Family:</span> Pratima Chakraborty</p>
-                            <p><span class="font-bold text-green-600 uppercase">Savings:</span> Avirup Chakraborty, Zerodha, Invest</p>
-                            <p><span class="font-bold text-rose-600 uppercase">EMI:</span> IDFC, Loan, Finance</p>
-                        </div>
-                    </div>
-                    
-                    <div class="card bg-indigo-600 text-white border-none shadow-lg">
-                        <h2 class="text-md font-semibold mb-3">Export</h2>
-                        <button onclick="exportToPDF()" class="w-full py-2.5 bg-white text-indigo-600 hover:bg-indigo-50 rounded-lg font-bold text-sm transition-all mb-3">
-                            Print / Save as PDF
-                        </button>
-                        <button onclick="location.reload()" class="w-full py-2 text-[10px] text-indigo-200 hover:text-white transition-all">
-                            Start Over
-                        </button>
-                    </div>
+            <!-- Transactions Table -->
+            <div class="lg:col-span-8 glass-card p-8 rounded-[2rem] shadow-sm">
+                <h3 class="font-bold text-gray-800 text-lg mb-6">Recent Expenses</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-gray-400 text-[10px] uppercase tracking-[0.2em] font-bold">
+                                <th class="pb-6">Item</th>
+                                <th class="pb-6">Category</th>
+                                <th class="pb-6">Date</th>
+                                <th class="pb-6 text-right">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenseList" class="text-sm">
+                            <!-- Transactions -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </main>
 
-    <script>
-        let transactions = [];
-        let chartInstance = null;
-
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-
-        dropZone.onclick = () => fileInput.click();
-        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
-        dropZone.ondragleave = () => dropZone.classList.remove('dragover');
-        dropZone.ondrop = (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            handleFile(e.dataTransfer.files[0]);
-        };
-        fileInput.onchange = (e) => handleFile(e.target.files[0]);
-
-        function handleFile(file) {
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                processExcelData(jsonData);
-                document.getElementById('uploadSection').classList.add('hidden');
-                document.getElementById('dashboardContent').classList.remove('hidden');
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function cleanAmount(val) {
-            if (val === undefined || val === null || val === "") return 0;
-            let str = val.toString().replace(/INR/gi, '').replace(/[",]/g, '').trim();
-            let num = parseFloat(str);
-            return isNaN(num) ? 0 : Math.abs(num);
-        }
-
-        function classify(amount, desc) {
-            const d = desc.toLowerCase();
-            if (d.includes("upi lite")) return "Daily Necessities";
-            if (d.includes("pratima chakraborty") || d.includes("pratima")) return "Family";
-            if ((d.includes("avirup chakraborty") || d.includes("avirup") || d.includes("stock") || d.includes("invest") || d.includes("zerodha") || d.includes("fixed deposit") || d.includes("indstocks")) && !d.includes("lite")) return "Savings";
-            if (d.includes("idfc") || d.includes("loan") || d.includes("finance") || d.includes("emi ")) return "EMI";
-            if (d.includes("chakraborty") || d.includes("family")) return "Family";
-            if (d.includes("ixigo") || d.includes("indigo") || d.includes("flight") || d.includes("irctc") || d.includes("makemytrip") || d.includes("cleartrip") || d.includes("vistara") || d.includes("air india")) return "Travel";
-            if (d.includes("amazon") || d.includes("macfos") || d.includes("flipkart") || d.includes("myntra") || d.includes("meesho") || d.includes("ajio") || d.includes("nykaa") || d.includes("baazar")) return "Online Shopping";
-            if (d.includes("uber") || d.includes("ola") || d.includes("rapido") || d.includes("namma yatri")) return "Transportation";
-            if (d.includes("jio") || d.includes("airtel") || d.includes("recharge") || d.includes("vi ")) return "Mobile Recharge";
-            if (d.includes("raja") || amount === 11000 || amount === 3000) return "Rent";
-            if (amount === 7000 || amount === 9000) return "Home";
-            if (amount <= 500 && amount > 0) return "Daily Necessities";
-            return "Unknown";
-        }
-
-        function processExcelData(data) {
-            let headerIdx = data.findIndex(row => row.some(cell => cell && cell.toString().toLowerCase().includes('date')));
-            if (headerIdx === -1) headerIdx = 0;
-            const headerRow = data[headerIdx];
-            const dateIdx = headerRow.findIndex(cell => cell && cell.toString().toLowerCase().includes('date'));
-            const descIdx = headerRow.findIndex(cell => cell && cell.toString().toLowerCase().includes('details'));
-            const debitIdx = headerRow.findIndex(cell => cell && cell.toString().toLowerCase().includes('debit'));
-
-            transactions = data.slice(headerIdx + 1).map((row, idx) => {
-                const dateRaw = row[dateIdx];
-                const amount = cleanAmount(row[debitIdx]);
-                const desc = (row[descIdx] || "N/A").toString().replace(/"/g, '').trim();
-                if (!dateRaw || amount === 0) return null;
-                const dateStr = dateRaw.toString();
-                let monthGroup = "Unknown";
-                const dateParts = dateStr.match(/[a-zA-Z]{3} \d{4}/);
-                if (dateParts) monthGroup = dateParts[0];
-                else {
-                    const d = new Date(dateStr);
-                    if (!isNaN(d.getTime())) monthGroup = d.toLocaleString('default', { month: 'short', year: 'numeric' });
-                }
-                return { id: idx, date: dateStr, monthGroup: monthGroup, desc: desc, amount: amount, type: classify(amount, desc) };
-            }).filter(t => t !== null);
-
-            const months = [...new Set(transactions.map(t => t.monthGroup))];
-            const mFilter = document.getElementById('monthFilter');
-            mFilter.innerHTML = '<option value="all">All Time (Total Sum)</option>';
-            months.forEach(m => {
-                const opt = document.createElement('option');
-                opt.value = m;
-                opt.textContent = m;
-                mFilter.appendChild(opt);
-            });
-            renderUI();
-        }
-
-        function renderUI() {
-            const tableBody = document.getElementById('transactionTable');
-            tableBody.innerHTML = '';
-            let stats = { total: 0, emi: 0, family: 0, shopping: 0, travel: 0, daily: 0, rentHome: 0, savings: 0, transport: 0, mobile: 0, unknown: 0 };
-            const catFilter = document.getElementById('categoryFilter').value;
-            const monthFilter = document.getElementById('monthFilter').value;
-            const search = document.getElementById('tableSearch').value.toLowerCase();
-
-            transactions.forEach(t => {
-                if (monthFilter !== 'all' && t.monthGroup !== monthFilter) return;
-                if (catFilter !== 'all' && t.type !== catFilter) return;
-                if (search && !t.desc.toLowerCase().includes(search)) return;
-
-                stats.total += t.amount;
-                if (t.type === "EMI") stats.emi += t.amount;
-                else if (t.type === "Family") stats.family += t.amount;
-                else if (t.type === "Online Shopping") stats.shopping += t.amount;
-                else if (t.type === "Travel") stats.travel += t.amount;
-                else if (t.type === "Daily Necessities") stats.daily += t.amount;
-                else if (t.type === "Rent" || t.type === "Home") stats.rentHome += t.amount;
-                else if (t.type === "Savings") stats.savings += t.amount;
-                else if (t.type === "Transportation") stats.transport += t.amount;
-                else if (t.type === "Mobile Recharge") stats.mobile += t.amount;
-                else stats.unknown += t.amount;
-
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition-colors border-b border-gray-50";
-                tr.innerHTML = `
-                    <td class="px-4 py-2.5 text-gray-500 whitespace-nowrap font-mono">${t.date}</td>
-                    <td class="px-4 py-2.5 text-gray-700 font-medium truncate max-w-[200px]" title="${t.desc}">${t.desc}</td>
-                    <td class="px-4 py-2.5 text-right font-bold text-gray-900">₹${t.amount.toLocaleString('en-IN')}</td>
-                    <td class="px-4 py-2.5 text-center">
-                        <div class="px-2 py-0.5 rounded border ${getBadgeClass(t.type)}">
-                            <select onchange="updateCategory(${t.id}, this.value)" class="edit-select">
-                                <option value="EMI" ${t.type === 'EMI' ? 'selected' : ''}>EMI</option>
-                                <option value="Family" ${t.type === 'Family' ? 'selected' : ''}>Family</option>
-                                <option value="Online Shopping" ${t.type === 'Online Shopping' ? 'selected' : ''}>Shopping</option>
-                                <option value="Travel" ${t.type === 'Travel' ? 'selected' : ''}>Travel</option>
-                                <option value="Rent" ${t.type === 'Rent' ? 'selected' : ''}>Rent</option>
-                                <option value="Home" ${t.type === 'Home' ? 'selected' : ''}>Home</option>
-                                <option value="Daily Necessities" ${t.type === 'Daily Necessities' ? 'selected' : ''}>Daily</option>
-                                <option value="Savings" ${t.type === 'Savings' ? 'selected' : ''}>Savings</option>
-                                <option value="Transportation" ${t.type === 'Transportation' ? 'selected' : ''}>Transport</option>
-                                <option value="Mobile Recharge" ${t.type === 'Mobile Recharge' ? 'selected' : ''}>Mobile</option>
-                                <option value="Unknown" ${t.type === 'Unknown' ? 'selected' : ''}>Unknown</option>
-                            </select>
-                        </div>
-                    </td>
-                `;
-                tableBody.appendChild(tr);
-            });
-
-            document.getElementById('totalSpent').innerText = `₹${Math.round(stats.total).toLocaleString('en-IN')}`;
-            document.getElementById('emiTotal').innerText = `₹${Math.round(stats.emi).toLocaleString('en-IN')}`;
-            document.getElementById('familyTotal').innerText = `₹${Math.round(stats.family).toLocaleString('en-IN')}`;
-            document.getElementById('shoppingTotal').innerText = `₹${Math.round(stats.shopping).toLocaleString('en-IN')}`;
-            document.getElementById('travelTotal').innerText = `₹${Math.round(stats.travel).toLocaleString('en-IN')}`;
-            document.getElementById('savingsTotal').innerText = `₹${Math.round(stats.savings).toLocaleString('en-IN')}`;
-            updateChart(stats);
-        }
-
-        function getBadgeClass(type) {
-            switch(type) {
-                case 'EMI': return 'bg-rose-50 border-rose-100 text-rose-600';
-                case 'Family': return 'bg-pink-50 border-pink-100 text-pink-600';
-                case 'Online Shopping': return 'bg-cyan-50 border-cyan-100 text-cyan-600';
-                case 'Travel': return 'bg-teal-50 border-teal-100 text-teal-600';
-                case 'Savings': return 'bg-green-50 border-green-100 text-green-600';
-                default: return 'bg-gray-50 border-gray-200 text-gray-400';
-            }
-        }
-
-        function updateCategory(id, newValue) {
-            const index = transactions.findIndex(t => t.id === id);
-            if (index !== -1) { transactions[index].type = newValue; renderUI(); }
-        }
-
-        function updateChart(stats) {
-            const labels = []; const data = []; const bgColors = [];
-            const colors = { 'EMI': '#e11d48', 'Family': '#db2777', 'Online Shopping': '#0891b2', 'Travel': '#0d9488', 'Rent': '#f43f5e', 'Home': '#f97316', 'Daily Necessities': '#3b82f6', 'Savings': '#10b981', 'Transportation': '#f59e0b', 'Mobile Recharge': '#8b5cf6', 'Unknown': '#94a3b8' };
-            Object.entries(stats).forEach(([key, val]) => {
-                if (key === 'total' || val === 0) return;
-                const friendlyName = { emi: 'EMI', family: 'Family', shopping: 'Shopping', travel: 'Travel', daily: 'Daily', rentHome: 'Rent/Home', savings: 'Savings', transport: 'Transport', mobile: 'Mobile', unknown: 'Misc' }[key] || key;
-                labels.push(friendlyName); data.push(val);
-                const mapKey = { emi: 'EMI', family: 'Family', shopping: 'Online Shopping', travel: 'Travel', daily: 'Daily Necessities', rentHome: 'Rent', savings: 'Savings', transport: 'Transportation', mobile: 'Mobile Recharge' }[key] || 'Unknown';
-                bgColors.push(colors[mapKey]);
-            });
-            const ctx = document.getElementById('expenseChart').getContext('2d');
-            if (chartInstance) chartInstance.destroy();
-            chartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: labels, datasets: [{ data: data, backgroundColor: bgColors, borderWidth: 1, borderColor: '#ffffff' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 10, font: { size: 9 } } } }, cutout: '65%' } });
-        }
-
-        function exportToPDF() {
-            const wrapper = document.getElementById('tableWrapper');
-            // Remove overflow to show all rows for printing
-            wrapper.style.maxHeight = 'none';
-            wrapper.style.overflow = 'visible';
+    <!-- Modal -->
+    <div id="modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[11000] flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl scale-up-center">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl font-bold text-gray-900">New Expense</h3>
+                <button onclick="document.getElementById('modal').classList.add('hidden')" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
             
-            // Short delay to ensure browser paints full table
-            setTimeout(() => {
-                window.print();
-                // Restore UI state after print dialog opens
-                wrapper.style.maxHeight = '500px';
-                wrapper.style.overflowY = 'auto';
-            }, 500);
+            <form id="expenseForm" class="space-y-6">
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">What did you buy?</label>
+                    <input type="text" id="desc" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 transition-all outline-none" placeholder="e.g. Weekly Groceries">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Amount (₹)</label>
+                        <input type="number" id="amt" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 transition-all outline-none" placeholder="0.00">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Category</label>
+                        <select id="cat" class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 transition-all outline-none">
+                            <option value="misc">Misc</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Date</label>
+                    <input type="date" id="date" required class="w-full px-5 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-indigo-500 transition-all outline-none">
+                </div>
+                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-[0.98] transition-all">Add Transaction</button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, addDoc, onSnapshot, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCpJFhOzhTnmUwiVs3ZvbH17EJdpawcy3k",
+            authDomain: "sharexpense-9a5e0.firebaseapp.com",
+            projectId: "sharexpense-9a5e0",
+            storageBucket: "sharexpense-9a5e0.firebasestorage.app",
+            messagingSenderId: "996631717498",
+            appId: "1:996631717498:web:e4d1406f23a2220dd3fdc3",
+            measurementId: "G-FCKCHC3T57"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let activeUser = null;
+        let chart = null;
+
+        // AUTH GUARD: The core mechanism
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                activeUser = user;
+                // Pre-fetch profile, categories and setup listeners before showing UI
+                await setupDashboard(user);
+                document.getElementById('authOverlay').style.display = 'none';
+            } else {
+                // Not logged in -> Redirect to login.html
+                window.location.href = 'login.html';
+            }
+        });
+
+        async function setupDashboard(user) {
+            // UI Profile Update
+            const profileRef = doc(db, "User", user.uid);
+            const profileSnap = await getDoc(profileRef);
+            
+            if (profileSnap.exists()) {
+                const data = profileSnap.data();
+                document.getElementById('welcomeUser').innerText = `Hello, ${data.name.split(' ')[0]}!`;
+                if (data.photo) {
+                    document.getElementById('userImg').src = data.photo;
+                    document.getElementById('userImg').classList.remove('hidden');
+                    document.getElementById('userInitials').classList.add('hidden');
+                } else {
+                    document.getElementById('userInitials').innerText = data.name.charAt(0);
+                }
+            }
+
+            // Real-time Category Sync
+            const catCol = collection(db, "User", user.uid, "Catagory");
+            onSnapshot(catCol, (snapshot) => {
+                const catSelect = document.getElementById('cat');
+                catSelect.innerHTML = '';
+                
+                if (snapshot.empty) {
+                    const opt = document.createElement('option');
+                    opt.value = 'Misc';
+                    opt.textContent = 'Misc';
+                    catSelect.appendChild(opt);
+                } else {
+                    snapshot.forEach(doc => {
+                        const opt = document.createElement('option');
+                        const catName = doc.data().name || doc.id;
+                        opt.value = catName;
+                        opt.textContent = catName;
+                        catSelect.appendChild(opt);
+                    });
+                }
+
+                // Add "Add Category" option at the end
+                const addOpt = document.createElement('option');
+                addOpt.value = "ADD_NEW";
+                addOpt.textContent = "+ Add Category";
+                addOpt.className = "text-indigo-600 font-bold";
+                catSelect.appendChild(addOpt);
+            });
+
+            // Category redirect listener
+            document.getElementById('cat').addEventListener('change', (e) => {
+                if (e.target.value === "ADD_NEW") {
+                    window.location.href = "rules.html";
+                }
+            });
+
+            // Real-time Data Sync
+            const q = query(collection(db, "User", user.uid, "expense"), orderBy("date", "desc"));
+            onSnapshot(q, (snapshot) => {
+                const data = [];
+                snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
+                refreshUI(data);
+            });
         }
 
-        document.getElementById('categoryFilter').addEventListener('change', renderUI);
-        document.getElementById('monthFilter').addEventListener('change', renderUI);
-        document.getElementById('tableSearch').addEventListener('input', renderUI);
+        function refreshUI(expenses) {
+            // Table
+            const tbody = document.getElementById('expenseList');
+            tbody.innerHTML = expenses.map(e => `
+                <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <td class="py-5 font-semibold text-gray-800">${e.description}</td>
+                    <td class="py-5"><span class="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wider">${e.category}</span></td>
+                    <td class="py-5 text-gray-400 text-xs">${new Date(e.date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</td>
+                    <td class="py-5 text-right font-bold text-gray-900">₹${parseFloat(e.amount).toLocaleString()}</td>
+                </tr>
+            `).join('');
+
+            // Data for Chart
+            const totals = {};
+            expenses.forEach(e => totals[e.category] = (totals[e.category] || 0) + parseFloat(e.amount));
+            
+            const labels = Object.keys(totals);
+            const values = Object.values(totals);
+            const palette = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6'];
+
+            if (chart) chart.destroy();
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{ data: values, backgroundColor: palette, borderWidth: 0, cutout: '75%', hoverOffset: 4 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Legend
+            const legend = document.getElementById('chartLegend');
+            legend.innerHTML = labels.map((l, i) => `
+                <div class="flex justify-between items-center group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-2.5 h-2.5 rounded-full" style="background:${palette[i % palette.length]}"></div>
+                        <span class="text-sm font-medium text-gray-500 group-hover:text-gray-900 transition-colors">${l}</span>
+                    </div>
+                    <span class="text-sm font-bold text-gray-900">₹${values[i].toLocaleString()}</span>
+                </div>
+            `).join('');
+        }
+
+        // Add Logic
+        document.getElementById('expenseForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const selectedCat = document.getElementById('cat').value;
+            
+            // Prevent adding expense with redirect sentinel
+            if (selectedCat === "ADD_NEW") return;
+
+            const expense = {
+                description: document.getElementById('desc').value,
+                amount: document.getElementById('amt').value,
+                category: selectedCat,
+                date: document.getElementById('date').value,
+                createdAt: new Date().toISOString()
+            };
+
+            try {
+                await addDoc(collection(db, "User", activeUser.uid, "expense"), expense);
+                document.getElementById('modal').classList.add('hidden');
+                document.getElementById('expenseForm').reset();
+                document.getElementById('date').valueAsDate = new Date();
+            } catch (err) {
+                console.error("Save Error:", err);
+            }
+        };
+
+        window.logoutUser = () => {
+            signOut(auth).then(() => window.location.href = 'login.html');
+        };
+
+        document.getElementById('date').valueAsDate = new Date();
     </script>
 </body>
 </html>
